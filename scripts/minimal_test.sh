@@ -31,9 +31,12 @@ run() { docker run --rm --user "$(id -u):$(id -g)" --network "${NET}" -e "CC_RED
 echo "==> Seeding the queue"
 run -v "$(pwd)/config:/frame:ro" "${IMAGE}" seed --file /frame/sample-images.txt
 
-echo "==> Running a worker (writes full bundles to ${DATASET}) until the queue drains"
+echo "==> Running a worker (pushes results to Redis) until the queue drains"
+run "${IMAGE}" work --idle-exit 3
+
+echo "==> Collecting results into ${DATASET} (host side)"
 mkdir -p "${DATASET}"
-run -v "${DATASET}:/data" -e CC_OUTPUT_DIR=/data "${IMAGE}" work --idle-exit 3
+run -v "${DATASET}:/data" "${IMAGE}" collect --out /data
 
 echo "==> Analyzing"
 run -v "${DATASET}:/data" "${IMAGE}" analyze --dataset /data

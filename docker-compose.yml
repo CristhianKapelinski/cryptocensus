@@ -19,18 +19,16 @@ services:
     command: ["work"]
     environment:
       CC_REDIS_URL: redis://redis:6379/0
-      CC_OUTPUT_DIR: /data
-    volumes:
-      - ./dataset:/data
     depends_on:
       redis:
         condition: service_healthy
     deploy:
       replicas: 2
-    # crane pulls images over the network; no Docker socket is mounted (daemonless).
+    # Stateless: pulls images with crane (daemonless) and pushes results to Redis.
 
-  # One-shot roles are run on demand, e.g.:
+  # One-shot host roles are run on demand, e.g.:
   #   docker compose run --rm tools seed    --file /frame/sample-images.txt
+  #   docker compose run --rm tools collect --out /data
   #   docker compose run --rm tools analyze --dataset /data
   tools:
     build: .

@@ -1,11 +1,11 @@
-"""Redis-backed reliable, multi-machine task queue.
+"""Redis-backed reliable, multi-machine task queue and result channel.
 
-Workers on any number of machines connect to a single Redis instance. A task (an
-image reference) is claimed with an atomic BLMOVE from the pending list to a shared
-processing list, so a crashed worker's task can be recovered with `requeue_stale`
-rather than lost. Redis carries only the queue and progress counters; each worker
-writes its results to its own output directory (see `storage`), so result volume never
-touches Redis.
+The host runs one Redis instance. Workers on any number of machines claim image
+references with an atomic BLMOVE from the pending list to a shared processing list (so
+a crashed worker's task is recoverable with `requeue_stale`, not lost), and push their
+finished result bundles back onto a result list. The host's collector drains that
+result list to disk. The only shared service the fleet needs is this Redis; workers are
+otherwise stateless and keep nothing locally.
 """
 
 from __future__ import annotations
@@ -25,6 +25,7 @@ class TaskQueue:
     def ping(self) -> bool:
         return bool(self._r.ping())
 
+    # --- tasks -------------------------------------------------------------
     def enqueue(self, references: Iterable[str]) -> int:
         refs = [r for r in references if r]
         if not refs:
@@ -32,8 +33,6 @@ class TaskQueue:
         return int(self._r.lpush(self._s.task_queue, *refs))
 
     def claim(self) -> str | None:
-        """Atomically move one task from pending to processing and return it, or None
-        if nothing arrived within the configured block window."""
         return self._r.blmove(
             self._s.task_queue, self._s.processing_queue, self._s.claim_block_s, "RIGHT", "LEFT"
         )
@@ -45,16 +44,28 @@ class TaskQueue:
         pipe.execute()
 
     def requeue_stale(self) -> int:
-        """Move everything still in the processing list back to pending (run after a
-        worker crash). Returns the number of tasks recovered."""
         moved = 0
         while self._r.lmove(self._s.processing_queue, self._s.task_queue, "RIGHT", "LEFT"):
             moved += 1
         return moved
 
+    # --- results -----------------------------------------------------------
+    def push_result(self, payload: str) -> None:
+        """`payload` is a base64(gzip(json)) bundle produced by the worker."""
+        self._r.lpush(self._s.result_queue, payload)
+
+    def pop_result(self, block_s: int = 2) -> str | None:
+        item = self._r.brpop(self._s.result_queue, timeout=block_s)
+        return item[1] if item else None
+
+    def results_pending(self) -> int:
+        return int(self._r.llen(self._s.result_queue))
+
+    # --- introspection -----------------------------------------------------
     def stats(self) -> dict[str, int]:
         return {
             "pending": int(self._r.llen(self._s.task_queue)),
             "processing": int(self._r.llen(self._s.processing_queue)),
+            "results_pending": self.results_pending(),
             "done": int(self._r.scard(self._s.done_set)),
         }

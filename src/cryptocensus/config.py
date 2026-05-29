@@ -17,6 +17,7 @@ class Settings:
     redis_url: str = os.environ.get("CC_REDIS_URL", "redis://localhost:6379/0")
     task_queue: str = os.environ.get("CC_TASK_QUEUE", "cryptocensus:tasks")
     processing_queue: str = os.environ.get("CC_PROCESSING_QUEUE", "cryptocensus:processing")
+    result_queue: str = os.environ.get("CC_RESULT_QUEUE", "cryptocensus:results")
     done_set: str = os.environ.get("CC_DONE_SET", "cryptocensus:done")
 
     # Where each worker writes the full per-image output bundle (records, CBOM, raw
@@ -40,10 +41,13 @@ class Settings:
     cbom_lens_bin: str = os.environ.get("CC_CBOM_LENS_BIN", "cbom-lens")
     syft_bin: str = os.environ.get("CC_SYFT_BIN", "syft")
 
-    # Limits.
+    # Limits and retry policy (everything configurable; no hardcoded constants).
     max_file_bytes: int = int(os.environ.get("CC_MAX_FILE_BYTES", str(2_000_000)))
     pull_timeout_s: int = int(os.environ.get("CC_PULL_TIMEOUT_S", "300"))
     tool_timeout_s: int = int(os.environ.get("CC_TOOL_TIMEOUT_S", "300"))
+    pull_retries: int = int(os.environ.get("CC_PULL_RETRIES", "3"))
+    pull_retry_backoff_s: float = float(os.environ.get("CC_PULL_RETRY_BACKOFF_S", "5"))
+    platform: str = os.environ.get("CC_PLATFORM", "linux/amd64")
     work_dir: str = os.environ.get("CC_WORK_DIR", "/tmp/cryptocensus")
     claim_block_s: int = int(os.environ.get("CC_CLAIM_BLOCK_S", "5"))
 

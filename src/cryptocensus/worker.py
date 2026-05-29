@@ -20,7 +20,7 @@ from .extractors import cbom_lens, certs_keys, libraries, sbom, secrets
 from .image import ImagePullError, export_rootfs
 from .queue import TaskQueue
 from .schema import ImageResult, ToolObservation
-from .storage import write_bundle
+from .transport import encode_bundle
 
 log = logging.getLogger("cryptocensus.worker")
 
@@ -40,7 +40,9 @@ def process_image(reference: str, s: Settings) -> tuple[ImageResult, dict]:
     work = os.path.join(s.work_dir, _safe_name(reference))
     shutil.rmtree(work, ignore_errors=True)
     try:
-        digest = export_rootfs(reference, work, s.crane_bin, s.pull_timeout_s)
+        digest = export_rootfs(reference, work, crane_bin=s.crane_bin, timeout_s=s.pull_timeout_s,
+                               retries=s.pull_retries, backoff_s=s.pull_retry_backoff_s,
+                               platform=s.platform)
         events.append(f"pull ok: {reference} -> {digest}")
     except ImagePullError as exc:
         events.append(f"pull failed: {exc}")
@@ -89,9 +91,8 @@ def run_worker(s: Settings | None = None, idle_exit: int = 0) -> None:
     empty claims (used by the minimal test and batch jobs); 0 means run forever."""
     s = s or default_settings
     queue = TaskQueue(s)
-    os.makedirs(s.output_dir, exist_ok=True)
     idle = 0
-    log.info("worker started; redis=%s output=%s", s.redis_url, s.output_dir)
+    log.info("worker started; redis=%s", s.redis_url)
     while True:
         reference = queue.claim()
         if reference is None:
@@ -109,8 +110,8 @@ def run_worker(s: Settings | None = None, idle_exit: int = 0) -> None:
             result = ImageResult(reference=reference, digest=None, ok=False, error=f"unexpected: {exc}")
             raw = {"log": f"unexpected: {exc}"}
         try:
-            write_bundle(s.output_dir, result, raw, save_raw=s.save_raw)
+            queue.push_result(encode_bundle(result, raw))
         except Exception:
-            log.exception("failed to write bundle for %s", reference)
+            log.exception("failed to push result for %s", reference)
         finally:
             queue.ack(reference)
