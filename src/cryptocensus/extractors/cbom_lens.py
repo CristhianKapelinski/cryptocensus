@@ -35,7 +35,9 @@ ports:
 """
 
 
-def observe(root: str, cbom_lens_bin: str = "cbom-lens", timeout_s: int = 300) -> ToolObservation:
+def scan(root: str, cbom_lens_bin: str = "cbom-lens", timeout_s: int = 300):
+    """Run CBOM-Lens and return (ToolObservation, raw_cbom_dict_or_None). The raw CBOM
+    is returned so the worker can persist the full third-party output for audit."""
     with tempfile.TemporaryDirectory() as tmp:
         out_dir = os.path.join(tmp, "out")
         os.makedirs(out_dir, exist_ok=True)
@@ -48,26 +50,27 @@ def observe(root: str, cbom_lens_bin: str = "cbom-lens", timeout_s: int = 300) -
                 capture_output=True, timeout=timeout_s, check=False,
             )
         except FileNotFoundError:
-            return ToolObservation("cbom-lens", 0, 0, 0, error="binary not found")
+            return ToolObservation("cbom-lens", 0, 0, 0, error="binary not found"), None
         except subprocess.TimeoutExpired:
-            return ToolObservation("cbom-lens", 0, 0, 0, error="timed out")
+            return ToolObservation("cbom-lens", 0, 0, 0, error="timed out"), None
 
         outputs = sorted(glob.glob(os.path.join(out_dir, "*.json")), key=os.path.getmtime)
         if not outputs:
-            return ToolObservation("cbom-lens", 0, 0, 0, error="no output produced")
+            return ToolObservation("cbom-lens", 0, 0, 0, error="no output produced"), None
         try:
             with open(outputs[-1]) as handle:
                 bom = json.load(handle)
         except (OSError, json.JSONDecodeError) as exc:
-            return ToolObservation("cbom-lens", 0, 0, 0, error=f"unparseable output: {exc}")
+            return ToolObservation("cbom-lens", 0, 0, 0, error=f"unparseable output: {exc}"), None
 
     counts: Counter[str] = Counter()
     for component in bom.get("components", []):
         asset_type = component.get("cryptoProperties", {}).get("assetType", "?")
         counts[asset_type] += 1
-    return ToolObservation(
+    observation = ToolObservation(
         tool="cbom-lens",
         certificates=counts.get("certificate", 0),
         keys=counts.get("related-crypto-material", 0),
         algorithms=counts.get("algorithm", 0),
     )
+    return observation, bom

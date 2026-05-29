@@ -55,7 +55,10 @@ def test_extract_certs_and_keys(tmp_path):
            ec_key.public_key().public_bytes(serialization.Encoding.PEM,
                                              serialization.PublicFormat.SubjectPublicKeyInfo))
 
-    certs, keys, weak_configs, files_scanned = certs_keys.extract(root)
+    certs, keys, weak_configs, files_scanned, blobs = certs_keys.extract(root)
+    # Raw bytes of every parsed cert/key are retained, content-addressed by sha256.
+    assert len(blobs) >= 3
+    assert all(isinstance(v, (bytes, bytearray)) for v in blobs.values())
 
     assert len(certs) == 2
     own = [c for c in certs if not c.in_trust_store]

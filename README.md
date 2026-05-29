@@ -54,9 +54,9 @@ any host by pointing `CC_REDIS_URL` at it. See [docs/ARCHITECTURE.md](docs/ARCHI
 
 ```bash
 docker compose up -d --build redis worker          # Redis + 2 workers
-docker compose run --rm coordinator seed --file /frame/sample-images.txt
-docker compose run --rm collector  collect  --out /dataset
-docker compose run --rm collector  analyze  --dataset /dataset
+docker compose run --rm tools seed    --file /frame/sample-images.txt
+# workers write per-image bundles into ./dataset as they process; when it drains:
+docker compose run --rm tools analyze --dataset /data
 cat dataset/summary.json
 ```
 

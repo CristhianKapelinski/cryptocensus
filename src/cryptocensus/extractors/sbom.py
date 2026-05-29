@@ -18,22 +18,23 @@ _CRYPTO_KEYWORDS = ("openssl", "libssl", "libcrypto", "gnutls", "gcrypt", "wolfs
                     "mbedtls", "boringssl", "nss", "nettle", "oqs")
 
 
-def extract(root: str, syft_bin: str = "syft", timeout_s: int = 300) -> tuple[list[LibraryRecord], str | None]:
+def extract(root: str, syft_bin: str = "syft", timeout_s: int = 300):
+    """Return (crypto_library_records, raw_syft_doc_or_None, error)."""
     cmd = [syft_bin, f"dir:{root}", "-o", "syft-json", "-q"]
     try:
         proc = subprocess.run(cmd, capture_output=True, timeout=timeout_s, check=False)
     except FileNotFoundError:
-        return [], "syft binary not found"
+        return [], None, "syft binary not found"
     except subprocess.TimeoutExpired:
-        return [], "syft timed out"
+        return [], None, "syft timed out"
     try:
         doc = json.loads(proc.stdout)
     except json.JSONDecodeError:
-        return [], "syft produced no JSON"
+        return [], None, "syft produced no JSON"
     records: list[LibraryRecord] = []
     for artifact in doc.get("artifacts", []):
         name = (artifact.get("name") or "").lower()
         if any(keyword in name for keyword in _CRYPTO_KEYWORDS):
             version = artifact.get("version") or ""
             records.append(LibraryRecord(name, version, "syft", library_pqc_capable(name, version)))
-    return records, None
+    return records, doc, None

@@ -1,6 +1,10 @@
-"""Worker: claim an image reference, pull and flatten it, run every enabled
-extractor, and emit a result. Stateless and idempotent — any number of workers on
-any number of machines can run concurrently against the same queue.
+"""Worker: claim an image reference, pull and flatten it by digest, run every enabled
+extractor, and write the complete per-image bundle (structured record, CBOM, raw tool
+outputs, raw crypto blobs, and a log) to the output directory.
+
+Stateless and idempotent: any number of workers on any number of machines run
+concurrently against the same Redis queue and write into their own output directory,
+which are merged for analysis. Raw artifacts are compressed as they are written.
 """
 
 from __future__ import annotations
@@ -16,6 +20,7 @@ from .extractors import cbom_lens, certs_keys, libraries, sbom, secrets
 from .image import ImagePullError, export_rootfs
 from .queue import TaskQueue
 from .schema import ImageResult, ToolObservation
+from .storage import write_bundle
 
 log = logging.getLogger("cryptocensus.worker")
 
@@ -24,42 +29,57 @@ def _safe_name(reference: str) -> str:
     return re.sub(r"[^A-Za-z0-9_.-]", "_", reference)
 
 
-def process_image(reference: str, s: Settings) -> ImageResult:
-    """Pull, flatten, and analyze a single image. Never raises for expected
-    failures (pull/parse); those are returned as a non-ok ImageResult."""
+def process_image(reference: str, s: Settings) -> tuple[ImageResult, dict]:
+    """Pull (by resolved digest), flatten, and analyze a single image. Returns the
+    structured result and a `raw` bundle (blobs, full tool outputs, log). Expected
+    failures (pull/parse) are returned as a non-ok result, never raised."""
+    events: list[str] = []
+    raw: dict = {"blobs": {}, "builtin_cbom": None, "cbom_lens": None,
+                 "gitleaks": None, "syft": None, "log": ""}
+
     work = os.path.join(s.work_dir, _safe_name(reference))
     shutil.rmtree(work, ignore_errors=True)
     try:
         digest = export_rootfs(reference, work, s.crane_bin, s.pull_timeout_s)
+        events.append(f"pull ok: {reference} -> {digest}")
     except ImagePullError as exc:
-        return ImageResult(reference=reference, digest=None, ok=False, error=f"pull: {exc}")
+        events.append(f"pull failed: {exc}")
+        raw["log"] = "\n".join(events)
+        return ImageResult(reference=reference, digest=None, ok=False, error=f"pull: {exc}"), raw
 
     try:
         result = ImageResult(reference=reference, digest=digest, ok=True)
         if s.enable_certs_keys:
-            certs, keys, weak_configs, files_scanned = certs_keys.extract(work, s.max_file_bytes)
-            result.certs = certs
-            result.keys = keys
-            result.weak_configs = weak_configs
-            result.files_scanned = files_scanned
-            result.tool_observations.append(
-                ToolObservation("builtin", len(certs), len(keys), 0)
-            )
+            certs, keys, weak_configs, files_scanned, blobs = certs_keys.extract(work, s.max_file_bytes)
+            result.certs, result.keys = certs, keys
+            result.weak_configs, result.files_scanned = weak_configs, files_scanned
+            result.tool_observations.append(ToolObservation("builtin", len(certs), len(keys), 0))
+            raw["blobs"] = blobs
+            events.append(f"builtin: certs={len(certs)} keys={len(keys)} blobs={len(blobs)}")
         if s.enable_libraries:
-            result.libraries.extend(libraries.extract(work))
+            libs = libraries.extract(work)
+            result.libraries.extend(libs)
+            events.append(f"libraries: {len(libs)}")
         if s.enable_syft:
-            syft_records, err = sbom.extract(work, s.syft_bin, s.tool_timeout_s)
+            syft_records, syft_doc, err = sbom.extract(work, s.syft_bin, s.tool_timeout_s)
             result.libraries.extend(syft_records)
-            if err:
-                log.warning("syft on %s: %s", reference, err)
+            raw["syft"] = syft_doc
+            events.append(f"syft: {len(syft_records)} crypto libs" + (f" (error: {err})" if err else ""))
         if s.enable_secrets:
             findings, err = secrets.extract(work, s.gitleaks_bin, s.tool_timeout_s)
+            raw["gitleaks"] = findings
             result.tool_observations.append(ToolObservation("gitleaks", 0, len(findings), 0, error=err))
+            events.append(f"gitleaks: {len(findings)} key findings" + (f" (error: {err})" if err else ""))
         if s.enable_cbom_lens:
-            result.tool_observations.append(
-                cbom_lens.observe(work, s.cbom_lens_bin, s.tool_timeout_s)
-            )
-        return result
+            observation, raw_cbom = cbom_lens.scan(work, s.cbom_lens_bin, s.tool_timeout_s)
+            result.tool_observations.append(observation)
+            raw["cbom_lens"] = raw_cbom
+            events.append(f"cbom-lens: certs={observation.certificates}"
+                          + (f" (error: {observation.error})" if observation.error else ""))
+
+        raw["builtin_cbom"] = build_cbom(result)
+        raw["log"] = "\n".join(events)
+        return result, raw
     finally:
         shutil.rmtree(work, ignore_errors=True)
 
@@ -69,8 +89,9 @@ def run_worker(s: Settings | None = None, idle_exit: int = 0) -> None:
     empty claims (used by the minimal test and batch jobs); 0 means run forever."""
     s = s or default_settings
     queue = TaskQueue(s)
+    os.makedirs(s.output_dir, exist_ok=True)
     idle = 0
-    log.info("worker started; redis=%s", s.redis_url)
+    log.info("worker started; redis=%s output=%s", s.redis_url, s.output_dir)
     while True:
         reference = queue.claim()
         if reference is None:
@@ -82,11 +103,14 @@ def run_worker(s: Settings | None = None, idle_exit: int = 0) -> None:
         idle = 0
         log.info("processing %s", reference)
         try:
-            result = process_image(reference, s)
+            result, raw = process_image(reference, s)
         except Exception as exc:  # defensive: a worker must never die on one image
             log.exception("unexpected error on %s", reference)
             result = ImageResult(reference=reference, digest=None, ok=False, error=f"unexpected: {exc}")
-        payload = result.to_json()
-        payload["cbom"] = build_cbom(result) if result.ok else None
-        queue.push_result(payload)
-        queue.ack(reference)
+            raw = {"log": f"unexpected: {exc}"}
+        try:
+            write_bundle(s.output_dir, result, raw, save_raw=s.save_raw)
+        except Exception:
+            log.exception("failed to write bundle for %s", reference)
+        finally:
+            queue.ack(reference)

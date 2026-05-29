@@ -17,8 +17,15 @@ class Settings:
     redis_url: str = os.environ.get("CC_REDIS_URL", "redis://localhost:6379/0")
     task_queue: str = os.environ.get("CC_TASK_QUEUE", "cryptocensus:tasks")
     processing_queue: str = os.environ.get("CC_PROCESSING_QUEUE", "cryptocensus:processing")
-    result_queue: str = os.environ.get("CC_RESULT_QUEUE", "cryptocensus:results")
     done_set: str = os.environ.get("CC_DONE_SET", "cryptocensus:done")
+
+    # Where each worker writes the full per-image output bundle (records, CBOM, raw
+    # tool outputs, and deduplicated crypto blobs). On a multi-machine run this is a
+    # per-host directory; gather the hosts' directories into one before analyzing.
+    output_dir: str = os.environ.get("CC_OUTPUT_DIR", "/data")
+    # Persist the raw (unparsed) artifacts: full third-party tool outputs and the raw
+    # certificate/key bytes. Kept on by default for auditability and reproducibility.
+    save_raw: bool = _flag("CC_SAVE_RAW", True)
 
     # Extractor toggles (every collector can be disabled for ablation/perf studies).
     enable_certs_keys: bool = _flag("CC_ENABLE_CERTS_KEYS", True)

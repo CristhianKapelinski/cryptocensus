@@ -2,12 +2,15 @@
 
 The same entry point runs every role so one image serves the whole fleet:
 
-    cryptocensus seed   --file refs.txt        # coordinator: fill the queue
-    cryptocensus work   [--idle-exit N]        # worker: process images (any machine)
-    cryptocensus collect --out dataset [--max] # drain results into a dataset
-    cryptocensus analyze --dataset dataset     # aggregate into the census results
-    cryptocensus stats                         # queue introspection
-    cryptocensus requeue-stale                 # recover a crashed worker's tasks
+    cryptocensus seed   --file refs.txt          # coordinator: fill the queue
+    cryptocensus work   [--idle-exit N]          # worker: process images (any machine)
+    cryptocensus analyze --dataset <output_dir>  # aggregate into the census results
+    cryptocensus stats                           # queue introspection
+    cryptocensus requeue-stale                   # recover a crashed worker's tasks
+
+Workers write their per-image bundles to CC_OUTPUT_DIR. On a multi-machine run, merge
+the hosts' output directories (a plain copy; filenames are content/digest addressed and
+deduplicate on merge) and point `analyze` at the merged directory.
 """
 
 from __future__ import annotations
@@ -18,7 +21,6 @@ import sys
 
 from . import __version__
 from .analyze import analyze, format_report
-from .collector import collect
 from .config import settings
 from .coordinator import seed
 from .queue import TaskQueue
@@ -39,12 +41,8 @@ def _build_parser() -> argparse.ArgumentParser:
     p_work.add_argument("--idle-exit", type=int, default=0,
                         help="exit after N consecutive empty claims (0 = run forever)")
 
-    p_collect = sub.add_parser("collect", help="drain results into a dataset directory")
-    p_collect.add_argument("--out", required=True, help="dataset output directory")
-    p_collect.add_argument("--max", type=int, default=None, help="stop after N results")
-
-    p_analyze = sub.add_parser("analyze", help="aggregate a dataset into census results")
-    p_analyze.add_argument("--dataset", required=True, help="dataset directory to analyze")
+    p_analyze = sub.add_parser("analyze", help="aggregate an output directory into census results")
+    p_analyze.add_argument("--dataset", required=True, help="worker output directory to analyze")
 
     sub.add_parser("stats", help="print queue statistics")
     sub.add_parser("requeue-stale", help="return in-flight tasks to the pending queue")
@@ -67,10 +65,6 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "work":
         run_worker(settings, idle_exit=args.idle_exit)
-        return 0
-
-    if args.command == "collect":
-        print(f"collected {collect(args.out, settings, max_results=args.max)} results into {args.out}")
         return 0
 
     if args.command == "analyze":

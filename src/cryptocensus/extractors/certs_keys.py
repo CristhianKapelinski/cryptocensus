@@ -139,11 +139,18 @@ def _make_key_record(public_key, path: str, trust: bool, kind: str) -> KeyRecord
 
 
 def extract(root: str, max_file_bytes: int = 2_000_000):
-    """Return (certs, keys, weak_configs, files_scanned)."""
+    """Return (certs, keys, weak_configs, files_scanned, blobs).
+
+    `blobs` maps the sha256 of each raw certificate/key block to its bytes, so the raw
+    material can be persisted (deduplicated) for audit and re-analysis."""
     certs: list[CertRecord] = []
     keys: list[KeyRecord] = []
     weak_configs: list[WeakConfigRecord] = []
+    blobs: dict[str, bytes] = {}
     files_scanned = 0
+
+    def keep(raw: bytes) -> None:
+        blobs[hashlib.sha256(raw).hexdigest()] = raw
 
     for dirpath, _dirs, filenames in os.walk(root):
         for filename in filenames:
@@ -176,6 +183,7 @@ def extract(root: str, max_file_bytes: int = 2_000_000):
                     else:
                         key = serialization.load_ssh_public_key(data.split(b"\n")[0])
                         keys.append(_make_key_record(key, rel, trust, "ssh"))
+                    keep(data)
                     continue
                 except Exception:
                     pass
@@ -184,6 +192,7 @@ def extract(root: str, max_file_bytes: int = 2_000_000):
             if lower.endswith((".der", ".crt", ".cer")) and b"-----BEGIN" not in data:
                 try:
                     certs.append(_make_cert_record(x509.load_der_x509_certificate(data), rel, trust))
+                    keep(data)
                 except Exception:
                     pass
                 continue
@@ -197,13 +206,16 @@ def extract(root: str, max_file_bytes: int = 2_000_000):
                 try:
                     if b"CERTIFICATE-----" in header:
                         certs.append(_make_cert_record(x509.load_pem_x509_certificate(block), rel, trust))
+                        keep(block)
                     elif b"PRIVATE KEY-----" in header:
                         key = serialization.load_pem_private_key(block, password=None)
                         keys.append(_make_key_record(key.public_key(), rel, trust, "private"))
+                        keep(block)
                     elif b"PUBLIC KEY-----" in header:
                         key = serialization.load_pem_public_key(block)
                         keys.append(_make_key_record(key, rel, trust, "public"))
+                        keep(block)
                 except Exception:
                     pass
 
-    return certs, keys, weak_configs, files_scanned
+    return certs, keys, weak_configs, files_scanned, blobs

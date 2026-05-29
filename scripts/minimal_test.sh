@@ -26,19 +26,16 @@ docker run -d --name "${REDIS}" --network "${NET}" redis:7-alpine \
   redis-server --save "" --appendonly no >/dev/null
 sleep 2
 
-run() { docker run --rm --network "${NET}" -e "CC_REDIS_URL=${REDIS_URL}" "$@"; }
+run() { docker run --rm --user "$(id -u):$(id -g)" --network "${NET}" -e "CC_REDIS_URL=${REDIS_URL}" "$@"; }
 
 echo "==> Seeding the queue"
 run -v "$(pwd)/config:/frame:ro" "${IMAGE}" seed --file /frame/sample-images.txt
 
-echo "==> Running a worker until the queue drains"
-run "${IMAGE}" work --idle-exit 3
-
-echo "==> Collecting results"
+echo "==> Running a worker (writes full bundles to ${DATASET}) until the queue drains"
 mkdir -p "${DATASET}"
-run -v "${DATASET}:/dataset" "${IMAGE}" collect --out /dataset
+run -v "${DATASET}:/data" -e CC_OUTPUT_DIR=/data "${IMAGE}" work --idle-exit 3
 
 echo "==> Analyzing"
-run -v "${DATASET}:/dataset" "${IMAGE}" analyze --dataset /dataset
+run -v "${DATASET}:/data" "${IMAGE}" analyze --dataset /data
 
 echo "==> Done. Artifacts in ${DATASET}/"
