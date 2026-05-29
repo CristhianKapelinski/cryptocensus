@@ -55,20 +55,40 @@ def _safe_extract(tar_path: str, dest: str) -> None:
                 continue
 
 
+def pin_to_digest(reference: str, digest: str) -> str:
+    """Rewrite a tag reference (``repo:tag``) to a digest reference (``repo@sha256:...``).
+    A reference that is already digest-pinned is returned unchanged."""
+    if "@" in reference:
+        return reference
+    last_segment = reference.rsplit("/", 1)[-1]
+    repo = reference.rsplit(":", 1)[0] if ":" in last_segment else reference
+    return f"{repo}@{digest}"
+
+
 def export_rootfs(
     reference: str,
     dest: str,
     crane_bin: str = "crane",
     timeout_s: int = 300,
-) -> str | None:
-    """Pull `reference`, flatten it, and extract its filesystem into `dest`.
-    Returns the image digest (or None if it could not be resolved). Raises
-    ImagePullError on pull failure."""
+) -> str:
+    """Resolve `reference` to an immutable digest, then pull and flatten *that digest*
+    into `dest`. Returns the digest. Raises ImagePullError if the reference cannot be
+    resolved or pulled.
+
+    Resolving the digest first and exporting by digest makes the census 100%
+    reproducible: the recorded digest is exactly the bytes that were scanned (no
+    time-of-check/time-of-use gap with the mutable tag), and the image can be
+    re-pulled later by digest even after the tag moves or is deleted."""
     os.makedirs(dest, exist_ok=True)
+    digest = image_digest(reference, crane_bin=crane_bin, timeout_s=min(timeout_s, 120))
+    if not digest:
+        raise ImagePullError(f"could not resolve digest for {reference}")
+    pinned = pin_to_digest(reference, digest)
+
     tar_path = dest.rstrip("/") + ".tar"
     try:
         proc = subprocess.run(
-            [crane_bin, "export", reference, tar_path],
+            [crane_bin, "export", pinned, tar_path],
             capture_output=True, text=True, timeout=timeout_s, check=False,
         )
     except FileNotFoundError as exc:
@@ -84,4 +104,4 @@ def export_rootfs(
             os.remove(tar_path)
         except OSError:
             pass
-    return image_digest(reference, crane_bin=crane_bin, timeout_s=min(timeout_s, 120))
+    return digest

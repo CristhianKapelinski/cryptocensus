@@ -73,9 +73,20 @@ Without Compose, `scripts/minimal_test.sh` runs the same flow end to end with pl
 
 ## Outputs (the released dataset)
 
-- `dataset/records/<ref>.json` — full structured per-image record.
+- `dataset/records/<ref>.json` — full structured per-image record (includes the
+  resolved image digest).
 - `dataset/cbom/<ref>.cbom.json` — CycloneDX 1.7 CBOM per image.
 - `dataset/summary.json`, `dataset/assets.csv`, `dataset/tool_divergence.csv`.
+- `dataset/run_manifest.csv` — every image pinned to the `sha256` digest that was
+  scanned, for 100% reproducible re-pulls.
+
+## Reproducibility
+
+Each image's tag is resolved to an immutable digest *before* scanning, and the image
+is pulled by digest (`repo@sha256:...`), so the recorded digest is exactly the bytes
+that were measured. `run_manifest.csv` records every `reference -> digest`, which lets
+anyone regenerate the dataset even after `:latest` tags move or repositories are
+deleted. The sampling frame is shipped as a fixed file with a recorded checksum.
 
 ## Pinned third-party tools
 
