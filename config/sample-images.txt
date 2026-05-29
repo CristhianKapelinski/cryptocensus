@@ -1,0 +1,8 @@
+# Minimal-test sampling frame: one image reference (repo:tag) per line.
+# A full study ships the uniform-random frame here; this small set exercises the
+# whole pipeline end to end (base OS, language runtime, web server, registry).
+alpine:latest
+debian:12-slim
+python:3.12-slim
+nginx:alpine
+registry:2

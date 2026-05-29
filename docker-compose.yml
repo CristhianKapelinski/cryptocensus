@@ -1,0 +1,53 @@
+# Local single-host deployment. For a multi-machine fleet, run Redis on one host and
+# start additional `worker` containers on other hosts with CC_REDIS_URL pointing at it.
+name: cryptocensus
+
+services:
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+
+  worker:
+    build: .
+    command: ["work"]
+    environment:
+      CC_REDIS_URL: redis://redis:6379/0
+    depends_on:
+      redis:
+        condition: service_healthy
+    deploy:
+      replicas: 2
+    # crane pulls images over the network; no Docker socket is mounted (daemonless).
+
+  # One-shot roles are run on demand, e.g.:
+  #   docker compose run --rm coordinator seed --file /frame/sample-images.txt
+  #   docker compose run --rm collector collect --out /dataset
+  #   docker compose run --rm collector analyze --dataset /dataset
+  coordinator:
+    build: .
+    profiles: ["tools"]
+    environment:
+      CC_REDIS_URL: redis://redis:6379/0
+    volumes:
+      - ./config:/frame:ro
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  collector:
+    build: .
+    profiles: ["tools"]
+    environment:
+      CC_REDIS_URL: redis://redis:6379/0
+    volumes:
+      - ./dataset:/dataset
+    depends_on:
+      redis:
+        condition: service_healthy

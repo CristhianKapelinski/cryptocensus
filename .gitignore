@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+
+# Tooling / runtime
+*.log
+.pytest_cache/
+.ruff_cache/
+
+# Census outputs (data products live outside the repo)
+/dataset/
+/out/
+/results/
+*.jsonl
+*.cbom.json
+summary.json
+assets.csv
+
+# Vendored third-party binaries (fetched at build time, pinned in Dockerfile)
+/vendor/
