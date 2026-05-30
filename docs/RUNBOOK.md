@@ -50,13 +50,18 @@ docker run --rm --network host -e CC_REDIS_URL=redis://localhost:6379/0 \
   -v $PWD/config/sample-20000.txt:/f.txt:ro cryptocensus:latest seed --file /f.txt
 ```
 
-Add / refresh workers on the fleet (idempotent, parallel builds):
+Add / refresh workers on the fleet (idempotent, parallel builds). `CC_DOCKER_CONFIG`
+points at a Docker `config.json` with the `ckapelinski` registry auth so workers pull
+authenticated (anonymous pulls hit Docker Hub's ~100/6h-per-IP limit and stall):
 ```
 cd ~/cryptocensus   # a clone of the repo on the coordinator
+ssh gama 'cat ~/.docker/config.json' > /tmp/dockercfg.json   # ckapelinski auth
 CC_REDIS_URL=redis://200.132.136.208:6379/0 \
 CC_HOSTS="deeppurple l06 l07 l09 l12 l13" \
-CC_WORKERS_PER_HOST=4 scripts/deploy_fleet.sh
+CC_WORKERS_PER_HOST=4 CC_DOCKER_CONFIG=/tmp/dockercfg.json scripts/deploy_fleet.sh
 ```
+gama's own workers mount its host config directly:
+`-v ~/.docker:/cc-dockercfg:ro -e DOCKER_CONFIG=/cc-dockercfg`.
 
 Analyze the dataset (snapshot anytime; safe while the run continues):
 ```
