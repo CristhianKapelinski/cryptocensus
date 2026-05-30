@@ -18,7 +18,10 @@ from .transport import decode_bundle
 log = logging.getLogger("cryptocensus.collector")
 
 
-def collect(output_dir: str, s: Settings | None = None, max_results: int | None = None) -> int:
+def collect(output_dir: str, s: Settings | None = None, max_results: int | None = None,
+            follow: bool = False) -> int:
+    """Drain results to disk. With `follow=True` it runs as a daemon, blocking for new
+    results instead of exiting when the queue momentarily empties."""
     s = s or default_settings
     queue = TaskQueue(s)
     written = 0
@@ -26,7 +29,8 @@ def collect(output_dir: str, s: Settings | None = None, max_results: int | None 
         payload = queue.pop_result(block_s=2)
         if payload is None:
             stats = queue.stats()
-            if stats["pending"] == 0 and stats["processing"] == 0 and stats["results_pending"] == 0:
+            if not follow and stats["pending"] == 0 and stats["processing"] == 0 \
+                    and stats["results_pending"] == 0:
                 break
             continue
         try:

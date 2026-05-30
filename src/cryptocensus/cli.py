@@ -45,6 +45,7 @@ def _build_parser() -> argparse.ArgumentParser:
     p_collect = sub.add_parser("collect", help="drain worker results into a dataset directory (host)")
     p_collect.add_argument("--out", required=True, help="dataset output directory")
     p_collect.add_argument("--max", type=int, default=None, help="stop after N results")
+    p_collect.add_argument("--follow", action="store_true", help="run as a daemon; never exit")
 
     p_analyze = sub.add_parser("analyze", help="aggregate an output directory into census results")
     p_analyze.add_argument("--dataset", required=True, help="worker output directory to analyze")
@@ -73,7 +74,8 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.command == "collect":
-        print(f"collected {collect(args.out, settings, max_results=args.max)} results into {args.out}")
+        count = collect(args.out, settings, max_results=args.max, follow=args.follow)
+        print(f"collected {count} results into {args.out}")
         return 0
 
     if args.command == "analyze":
