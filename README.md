@@ -1,124 +1,162 @@
 # CryptoCensus
 
-A reproducible, distributed census of the **cryptographic posture** and
-**post-quantum readiness** of public container images.
+**A reproducible, distributed census of the cryptographic posture and post-quantum
+readiness of public container images.**
 
-Every container starts from an image that ships certificates, keys, cryptographic
-libraries, and TLS/SSH configuration. CryptoCensus pulls images at scale, extracts
-that cryptographic material with several independent tools, and reports — with
-confidence-interval-ready per-asset data — how much of it is weak, expired, reused,
-or **quantum-vulnerable (RSA/ECC) versus post-quantum ready**.
+This repository is the research artifact for the paper *"CryptoCensus: Cryptographic
+Posture and Post-Quantum Readiness of Docker Hub"* (WTICG/SBSeg 2026). It pulls a
+uniform-random sample of Docker Hub images pinned by content digest, extracts the
+certificates, keys, cryptographic libraries, and weak TLS/SSH configuration each one
+ships, and reports how much of that material is weak, expired, reused, or
+**quantum-vulnerable (RSA/ECC) versus post-quantum ready** (NIST FIPS 203/204/205;
+IR 8547). The artifact reproduces every quantitative claim in the paper from the
+released dataset.
 
-The headline question: *what fraction of the cryptography actually shipped inside the
-container ecosystem will be broken by a quantum computer, and is anything ready for
-the migration mandated by NIST (FIPS 203/204/205; IR 8547; CSWP 39)?*
+This README follows the SBC artifact-evaluation checklist.
 
-## What it measures
-
-For each image, on a single filesystem pass plus independent tool runs:
-
-- **Algorithm strength** — MD5/SHA-1 signatures, RSA &lt; 2048, weak EC/DSA, weak
-  cipher tokens (RC4/DES/3DES/NULL/SSLv3) in TLS/SSH configs.
-- **Certificates & keys** — validity, self-signed, CA flag, key type/size; the system
-  **CA trust bundle is separated from the image author's own material**.
-- **Post-quantum status** — each public-key asset is classified
-  `quantum-vulnerable | post-quantum`; libraries get a version-based PQC-capability
-  flag (the QED-Lite fingerprinting idea), so *capability* and *usage* are distinguished.
-- **Key reuse & weak keys** — identical public keys reused across images, and
-  shared-prime factorable RSA moduli via batch-GCD — computed on **own** keys only.
-- **Inter-tool divergence** — independent third-party extractors are compared on the
-  same images (NIST SP 1800-38: "no single tool finds everything").
-
-## Architecture
+## README structure
 
 ```
-            ┌─────────────┐   seed    ┌──────────────────────────┐
-            │ coordinator │ ────────▶ │        Redis queue        │
-            └─────────────┘           │ tasks → processing → done │
-                                      └──────────┬───────────────┘
-                claim (BLMOVE, atomic)           │ results list
-        ┌───────────────┬───────────────┬────────┴────────┐
-        ▼               ▼               ▼                  ▼
-   ┌─────────┐     ┌─────────┐     ┌─────────┐        ┌───────────┐
-   │ worker  │ ... │ worker  │ ... │ worker  │        │ collector │──▶ dataset/
-   │ (host A)│     │ (host B)│     │ (host C)│        │ + analyze │     records/
-   └─────────┘     └─────────┘     └─────────┘        └───────────┘     cbom/
-   crane pull → flatten → extractors → CBOM 1.7                         summary.json
+README.md            this document (artifact-evaluation checklist)
+Dockerfile           single pinned image with all third-party tools
+docker-compose.yml   single-host stack: redis + workers + tools
+src/cryptocensus/    Python package (sampler, queue, extractors, analyzer, CLI)
+config/              sampling frames: sample-images.txt (minimal), sample-20000.txt (full)
+scripts/             minimal_test.sh, reproduce.sh, deploy_fleet.sh
+docs/                ARCHITECTURE.md, ARTIFACT.md, RUNBOOK.md
+tests/               unit tests (no Docker, no network)
+LICENSE              MIT
 ```
 
-Workers are stateless and daemonless (images are pulled and flattened with `crane`,
-never executed). The only cross-machine dependency is a reachable Redis; add workers on
-any host by pointing `CC_REDIS_URL` at it. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+Workers are stateless and **daemonless**: images are pulled and flattened with `crane`
+and never executed. The only cross-machine dependency is a reachable Redis queue;
+results are pushed back and merged by a collector into `dataset/`.
 
-## Quickstart (single host, Docker Compose)
+## Badges claimed (Selos)
 
-```bash
-docker compose up -d --build redis worker          # Redis + 2 workers
-docker compose run --rm tools seed    --file /frame/sample-images.txt
-# workers write per-image bundles into ./dataset as they process; when it drains:
-docker compose run --rm tools analyze --dataset /data
-cat dataset/summary.json
-```
+- **Available (SeloD):** all source, the pinned `Dockerfile`, the sampling frames, and
+  the documentation are in this public repository under an open license.
+- **Functional (SeloF):** unit tests plus an end-to-end minimal test build and run the
+  full pipeline (see *Minimal test*).
+- **Sustainable (SeloS):** the code is a modular `src/` package (one module per concern:
+  sampling, queue, transport, extractors, analysis), fully environment-configured with
+  no hardcoded paths or hosts, and documented in `docs/ARCHITECTURE.md`.
+- **Reproducible (SeloR):** `scripts/reproduce.sh` regenerates the paper's headline
+  numbers from the released digest-pinned dataset, and `run_manifest.csv` lets anyone
+  re-pull the exact images that were measured (see *Experiments*).
 
-Without Compose, `scripts/minimal_test.sh` runs the same flow end to end with plain
-`docker run` on a user-defined network.
+## Basic information (environment)
 
-## Multi-machine fleet
+- Linux x86-64; **Docker ≥ 24** (Docker Compose v2 optional).
+- No GPU. The minimal test runs on any laptop (2 cores, 4 GB RAM, ~2 GB disk).
+- Network access to Docker Hub to pull the base image, the tooling, and the sampled
+  images. Anonymous pulls are rate-limited; a Docker Hub login raises the limit for the
+  full census (not needed for the minimal test).
+- For the unit tests only: [uv](https://docs.astral.sh/uv/) (no Docker required).
 
-1. Start Redis on a coordinator host (`redis://COORD:6379/0`), reachable by the fleet.
-2. On every worker host: `docker run cryptocensus work` with
-   `CC_REDIS_URL=redis://COORD:6379/0`. Workers self-balance via atomic claims.
-3. Seed once from the coordinator; collect and analyze when the queue drains.
-4. Recover a crashed worker's in-flight tasks with `cryptocensus requeue-stale`.
+## Dependencies
 
-## Outputs (the released dataset)
-
-- `dataset/records/<ref>.json` — full structured per-image record (includes the
-  resolved image digest).
-- `dataset/cbom/<ref>.cbom.json` — CycloneDX 1.7 CBOM per image.
-- `dataset/summary.json`, `dataset/assets.csv`, `dataset/tool_divergence.csv`.
-- `dataset/run_manifest.csv` — every image pinned to the `sha256` digest that was
-  scanned, for 100% reproducible re-pulls.
-
-## Reproducibility
-
-Each image's tag is resolved to an immutable digest *before* scanning, and the image
-is pulled by digest (`repo@sha256:...`), so the recorded digest is exactly the bytes
-that were measured. `run_manifest.csv` records every `reference -> digest`, which lets
-anyone regenerate the dataset even after `:latest` tags move or repositories are
-deleted. The sampling frame is shipped as a fixed file with a recorded checksum.
-
-## Pinned third-party tools
+All third-party tools are pinned in the `Dockerfile`; no host installation is needed
+beyond Docker (and `uv` for the unit tests).
 
 | Tool | Version | Role |
 |------|---------|------|
 | crane (go-containerregistry) | 0.21.6 | daemonless pull + flatten |
-| CBOM-Lens (OmniTrustILM) | 1.0.0 | independent CycloneDX-CBOM extractor |
+| CBOM-Lens (OmniTrustILM) | 1.0.0 | independent CycloneDX-CBOM extractor (cross-check) |
 | gitleaks | 8.30.1 | private-key recall |
 | syft | 1.44.0 | crypto-library inventory (optional) |
-| Python `cryptography` | ≥41 | certificate/key parsing (built-in extractor) |
+| Python `cryptography` | ≥41 | certificate/key parsing (built-in instrument) |
+| Redis | 7 | distributed task queue |
+| uv (Astral) | 0.11.17 | dependency management / unit tests |
+
+## Security concerns
+
+The artifact is **safe to run**. Sampled images are **pulled and flattened, never
+executed**: `crane` exports the filesystem layers as data, so no untrusted code runs.
+Extraction reads files inside an unpacked root filesystem in a scratch directory that is
+removed after each image. No credentials are required for the minimal test; for the full
+census a Docker Hub token may be supplied via the standard `~/.docker/config.json` and is
+only used to authenticate pulls. The pipeline opens no inbound ports other than the Redis
+queue you start.
+
+## Installation
+
+```bash
+git clone https://github.com/CristhianKapelinski/cryptocensus && cd cryptocensus
+docker build -t cryptocensus:latest .        # builds the single pinned image
+```
+
+For the unit tests (host, no Docker):
+
+```bash
+uv sync --extra dev
+```
+
+## Minimal test (≈5 minutes)
+
+Two independent checks; either confirms the artifact is functional.
+
+```bash
+uv run pytest                # unit tests: classifier, batch-GCD, extractor (no network)
+bash scripts/minimal_test.sh # end-to-end: build → seed → work → collect → analyze
+```
+
+`scripts/minimal_test.sh` starts Redis and one worker, censuses the eight images in
+`config/sample-images.txt`, and writes `dataset/summary.json`, `dataset/assets.csv`, and
+per-image CBOMs under `dataset/cbom/`, then prints the aggregated report. Expected
+qualitative result on this tiny frame: hundreds of public-key assets, **~100%
+quantum-vulnerable and ~0% post-quantum**, SHA-1 signatures present, most images shipping
+a PQC-*capable* library while PQC *usage* is 0%, and the built-in extractor's certificate
+count agreeing with CBOM-Lens (the instrument calibration check).
+
+## Experiments (reproducing the paper's claims)
+
+The paper's numbers come from one artifact: the analyzer over the census dataset. Each
+claim maps to a field of `dataset/summary.json`.
+
+| Claim in the paper | summary.json field |
+|--------------------|---------------------|
+| C1 — image decay (~39% of uniform-random refs unavailable) | `unavailable_pct` |
+| C2 — 100% of public-key assets quantum-vulnerable, 0% post-quantum | `quantum_vulnerable_pct`, `post_quantum_pct` |
+| C3 — capability without use (images shipping an unused PQC-capable library) | `images_with_pqc_capable_library` |
+| C4 — ~46% of own certificates signed with SHA-1/MD5 | `certs_own_weak_signature` / `certs_own` |
+| C5 — private keys reused across images; batch-GCD shared-prime test | `own_keys_reused_across_images`, `factorable_moduli_shared_prime` |
+
+**Reproduce from the released dataset (minutes, single host):**
+
+```bash
+# download the released dataset/ (digest-pinned per-image records), then:
+scripts/reproduce.sh dataset
+# prints summary.json; assets.csv supports recomputing every confidence interval.
+```
+
+**Reproduce the census end to end (hours to days, scales with workers):**
+
+1. Use the full uniform-random frame `config/sample-20000.txt` (its checksum is fixed).
+2. `docker compose up -d --build redis worker` and scale with `--scale worker=N`, or run
+   `cryptocensus work` on multiple hosts pointing the same `CC_REDIS_URL` at one Redis.
+3. `docker compose run --rm tools seed --file /frame/sample-20000.txt`.
+4. When the queue drains, `cryptocensus collect` then `scripts/reproduce.sh dataset`.
+5. Recover a crashed worker's in-flight tasks with `cryptocensus requeue-stale`.
+
+**Reproducibility guarantee.** Each tag is resolved to an immutable digest *before*
+scanning and pulled by digest (`repo@sha256:...`); `dataset/run_manifest.csv` records
+every `reference -> digest`, so the exact bytes measured can be re-pulled even after
+`:latest` moves or repositories are deleted. Tool versions are pinned in the `Dockerfile`,
+and extraction is deterministic given a digest.
 
 ## Configuration
 
-All behaviour is environment-driven (see `src/cryptocensus/config.py`): `CC_REDIS_URL`,
-queue names, per-extractor toggles (`CC_ENABLE_*`), and timeouts. Extractors can be
-disabled individually for ablation and performance studies.
-
-## Tests
-
-Dependencies are managed with [uv](https://docs.astral.sh/uv/):
-
-```bash
-uv sync --extra dev && uv run pytest     # unit tests (no Docker, no network)
-```
+All behaviour is environment-driven (`src/cryptocensus/config.py`): `CC_REDIS_URL`, queue
+names, per-extractor toggles (`CC_ENABLE_*`), `CC_WORK_DIR`, pull retries/backoff, and
+timeouts. Nothing is hardcoded; extractors can be disabled individually for ablation.
 
 ## Limitations
 
 CryptoCensus measures *deployed cryptographic material* (certificates, keys, configs,
-library versions). It does **not** decompile binaries to prove an algorithm is invoked
-at runtime; PQC capability is a version signal, not usage. Sampling-frame construction
-is documented in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). See also
-[docs/ARTIFACT.md](docs/ARTIFACT.md) for artifact-evaluation instructions.
+library versions). It does not decompile binaries to prove an algorithm is invoked at
+runtime; PQC capability is a version signal, not usage. Sampling-frame construction is
+documented in `docs/ARCHITECTURE.md`.
 
 ## License
 
