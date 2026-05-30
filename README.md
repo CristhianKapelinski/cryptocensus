@@ -14,6 +14,21 @@ released dataset.
 
 This README follows the SBC artifact-evaluation checklist.
 
+## Quick start for reviewers (copy-paste, runs everything)
+
+Two commands reproduce everything end to end; each is self-contained, builds what it
+needs, and prints its result. Total **≈ 8 minutes on a laptop** (no GPU).
+
+```bash
+git clone https://github.com/CristhianKapelinski/cryptocensus && cd cryptocensus
+bash scripts/minimal_test.sh    # SeloF: builds image + runs the full pipeline on 8 images   (~5 min)
+bash scripts/reproduce.sh       # SeloR: downloads the dataset + reproduces Claim #1          (~2 min)
+```
+
+Optional unit tests, no Docker (~1 min): `uv sync --extra dev && uv run pytest`.
+Nothing else is needed: `reproduce.sh` fetches the released dataset automatically and both
+scripts build the pinned image if it is missing. Details and per-badge notes follow.
+
 ## README structure
 
 ```
@@ -109,41 +124,52 @@ quantum-vulnerable and ~0% post-quantum**, SHA-1 signatures present, most images
 a PQC-*capable* library while PQC *usage* is 0%, and the built-in extractor's certificate
 count agreeing with CBOM-Lens (the instrument calibration check).
 
-## Experiments (reproducing the paper's claims)
+## Experiments (reproducing the paper's main claim)
 
-The paper's numbers come from one artifact: the analyzer over the census dataset. Each
-claim maps to a field of `dataset/summary.json`.
+Per the SBC guidance, we designate **one main claim** for reproduction. It is the
+paper's central result and the cheapest to verify; every other number in the paper is a
+field of the same `dataset/summary.json`, so a reviewer can spot-check any of them with
+no extra steps.
 
-| Claim in the paper | summary.json field |
-|--------------------|---------------------|
-| C1 — image decay (~39% of uniform-random refs unavailable) | `unavailable_pct` |
-| C2 — 100% of public-key assets quantum-vulnerable, 0% post-quantum | `quantum_vulnerable_pct`, `post_quantum_pct` |
-| C3 — capability without use (images shipping an unused PQC-capable library) | `images_with_pqc_capable_library` |
-| C4 — ~46% of own certificates signed with SHA-1/MD5 | `certs_own_weak_signature` / `certs_own` |
-| C5 — private keys reused across images; batch-GCD shared-prime test | `own_keys_reused_across_images`, `factorable_moduli_shared_prime` |
+### Claim #1 (central result)
 
-**Reproduce from the released dataset (minutes, single host):**
+Over the uniform-random sample of Docker Hub images, **~100% of public-key assets are
+quantum-vulnerable and 0% are post-quantum**, while about one image in five already ships
+a PQC-*capable* library it never uses (paper Abstract; Section "Post-quantum readiness";
+Figure "Own cryptographic material").
+
+**Reproduce (from the released dataset, single host, no special hardware):**
 
 ```bash
-# download the released dataset/ (digest-pinned per-image records), then:
+# fetch the released dataset/ (digest-pinned per-image records), then:
 scripts/reproduce.sh dataset
-# prints summary.json; assets.csv supports recomputing every confidence interval.
 ```
 
-**Reproduce the census end to end (hours to days, scales with workers):**
+- **Resources / time:** 1 core, < 2 GB RAM, **≈ 2 minutes**. No GPU, no network.
+- **Expected output:** `dataset/summary.json` shows `quantum_vulnerable_pct: 100.0`,
+  `post_quantum_pct: 0.0`, and `images_with_pqc_capable_library` > 0. The same run writes
+  `dataset/assets.csv` (one row per asset), from which the paper's figure and confidence
+  intervals are recomputed.
+- **Determinism:** extraction is deterministic given an image digest and the pipeline
+  uses **no randomness**, so the numbers reproduce **exactly** (not within a tolerance).
+  `dataset/run_manifest.csv` pins every `reference -> digest`, so even re-pulling the
+  images yields byte-identical inputs.
 
-1. Use the full uniform-random frame `config/sample-20000.txt` (its checksum is fixed).
-2. `docker compose up -d --build redis worker` and scale with `--scale worker=N`, or run
-   `cryptocensus work` on multiple hosts pointing the same `CC_REDIS_URL` at one Redis.
-3. `docker compose run --rm tools seed --file /frame/sample-20000.txt`.
-4. When the queue drains, `cryptocensus collect` then `scripts/reproduce.sh dataset`.
-5. Recover a crashed worker's in-flight tasks with `cryptocensus requeue-stale`.
+The remaining paper numbers are fields of the same `summary.json` if a reviewer wishes to
+check them: decay (`unavailable_pct`), weak signatures
+(`certs_own_weak_signature`/`certs_own`), key reuse (`own_keys_reused_across_images`),
+batch-GCD (`factorable_moduli_shared_prime`).
 
-**Reproducibility guarantee.** Each tag is resolved to an immutable digest *before*
-scanning and pulled by digest (`repo@sha256:...`); `dataset/run_manifest.csv` records
-every `reference -> digest`, so the exact bytes measured can be re-pulled even after
-`:latest` moves or repositories are deleted. Tool versions are pinned in the `Dockerfile`,
-and extraction is deterministic given a digest.
+### Optional: re-run the full census end to end
+
+Not required to verify Claim #1 (the released dataset does that in minutes). To rebuild
+the dataset from scratch: use the full uniform-random frame `config/sample-20000.txt`
+(fixed checksum), `docker compose up -d --build redis worker` scaled with
+`--scale worker=N` (or `cryptocensus work` on several hosts sharing one `CC_REDIS_URL`),
+`seed`, then `collect` and `scripts/reproduce.sh dataset`; `cryptocensus requeue-stale`
+recovers a crashed worker's in-flight tasks. Our run used commodity x86-64 hosts
+(8-core Intel i7-9700, 32 GB RAM, Debian/Ubuntu); wall-clock scales with worker count and
+Docker Hub pull bandwidth.
 
 ## Configuration
 
