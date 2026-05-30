@@ -33,9 +33,12 @@ deploy_one() {
     fi
     ssh "${SSH_OPTS[@]}" "$h" "cd ~/cryptocensus-src \
       && docker build -q -t '$IMAGE' . \
+      && mkdir -p ~/cc-work \
       && for i in \$(seq 1 $PER_HOST); do \
            docker rm -f cryptocensus-worker-\$i >/dev/null 2>&1 || true; \
+           rm -rf ~/cc-work/w\$i; mkdir -p ~/cc-work/w\$i; \
            docker run -d --name cryptocensus-worker-\$i --restart unless-stopped \
+             -v ~/cc-work/w\$i:/work -e CC_WORK_DIR=/work \
              $mount -e CC_REDIS_URL='$REDIS_URL' '$IMAGE' work >/dev/null; \
          done"
   } >"$log" 2>&1 \

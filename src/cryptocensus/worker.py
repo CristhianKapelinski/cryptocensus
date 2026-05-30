@@ -29,6 +29,22 @@ def _safe_name(reference: str) -> str:
     return re.sub(r"[^A-Za-z0-9_.-]", "_", reference)
 
 
+def _force_rmtree(path: str) -> None:
+    """Reliably remove a flattened rootfs. Extracted container trees often contain
+    directories with restrictive modes that defeat a plain rmtree, so make every
+    directory traversable/writable first. Leaking scratch fills small disks and was
+    the dominant cause of ENOSPC pull failures."""
+    if not os.path.exists(path):
+        return
+    for root, dirs, _files in os.walk(path):
+        for d in dirs:
+            try:
+                os.chmod(os.path.join(root, d), 0o700)
+            except OSError:
+                pass
+    shutil.rmtree(path, ignore_errors=True)
+
+
 def process_image(reference: str, s: Settings) -> tuple[ImageResult, dict]:
     """Pull (by resolved digest), flatten, and analyze a single image. Returns the
     structured result and a `raw` bundle (blobs, full tool outputs, log). Expected
@@ -38,7 +54,7 @@ def process_image(reference: str, s: Settings) -> tuple[ImageResult, dict]:
                  "gitleaks": None, "syft": None, "log": ""}
 
     work = os.path.join(s.work_dir, _safe_name(reference))
-    shutil.rmtree(work, ignore_errors=True)
+    _force_rmtree(work)
     try:
         digest = export_rootfs(reference, work, crane_bin=s.crane_bin, timeout_s=s.pull_timeout_s,
                                retries=s.pull_retries, backoff_s=s.pull_retry_backoff_s,
@@ -83,7 +99,7 @@ def process_image(reference: str, s: Settings) -> tuple[ImageResult, dict]:
         raw["log"] = "\n".join(events)
         return result, raw
     finally:
-        shutil.rmtree(work, ignore_errors=True)
+        _force_rmtree(work)
 
 
 def run_worker(s: Settings | None = None, idle_exit: int = 0) -> None:
