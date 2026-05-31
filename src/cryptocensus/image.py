@@ -109,7 +109,7 @@ def _compressed_size(crane_bin: str, pinned: str, plat: list[str], timeout_s: in
 
 def export_rootfs(reference: str, dest: str, crane_bin: str = "crane", timeout_s: int = 300,
                   retries: int = 3, backoff_s: float = 5.0, platform: str = "linux/amd64",
-                  max_bytes: int = 0) -> str:
+                  max_bytes: int = 0, max_extract_bytes: int = 0) -> str:
     """Resolve, pull-by-digest, and flatten `reference` into `dest`; return the digest.
     Images whose compressed size exceeds `max_bytes` (when set) are skipped before the
     pull and reported via `ImageTooLarge`, so they neither stall workers nor fill disk."""
