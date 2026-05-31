@@ -44,6 +44,7 @@ class Settings:
     # Limits and retry policy (everything configurable; no hardcoded constants).
     max_file_bytes: int = int(os.environ.get("CC_MAX_FILE_BYTES", str(2_000_000)))
     max_image_bytes: int = int(os.environ.get("CC_MAX_IMAGE_BYTES", str(2 * 1024 * 1024 * 1024)))
+    max_extract_bytes: int = int(os.environ.get("CC_MAX_EXTRACT_BYTES", str(4 * 1024 * 1024 * 1024)))
     pull_timeout_s: int = int(os.environ.get("CC_PULL_TIMEOUT_S", "300"))
     tool_timeout_s: int = int(os.environ.get("CC_TOOL_TIMEOUT_S", "300"))
     pull_retries: int = int(os.environ.get("CC_PULL_RETRIES", "3"))

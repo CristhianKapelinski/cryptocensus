@@ -58,7 +58,8 @@ def process_image(reference: str, s: Settings) -> tuple[ImageResult, dict]:
     try:
         digest = export_rootfs(reference, work, crane_bin=s.crane_bin, timeout_s=s.pull_timeout_s,
                                retries=s.pull_retries, backoff_s=s.pull_retry_backoff_s,
-                               platform=s.platform, max_bytes=s.max_image_bytes)
+                               platform=s.platform, max_bytes=s.max_image_bytes,
+                               max_extract_bytes=s.max_extract_bytes)
         events.append(f"pull ok: {reference} -> {digest}")
     except ImagePullError as exc:
         events.append(f"pull failed: {exc}")

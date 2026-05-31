@@ -51,8 +51,9 @@ def pin_to_digest(reference: str, digest: str) -> str:
     return f"{repo}@{digest}"
 
 
-def _safe_extract(tar_path: str, dest: str) -> None:
+def _safe_extract(tar_path: str, dest: str, max_extract_bytes: int = 0) -> None:
     root = os.path.realpath(dest)
+    written = 0
     with tarfile.open(tar_path, "r:*") as tar:
         for member in tar:
             if not (member.isfile() or member.isdir()):
@@ -60,16 +61,28 @@ def _safe_extract(tar_path: str, dest: str) -> None:
             target = os.path.realpath(os.path.join(dest, member.name))
             if target != root and not target.startswith(root + os.sep):
                 continue
-            try:
-                if member.isdir():
+            if member.isdir():
+                try:
                     os.makedirs(target, exist_ok=True)
-                    continue
+                except OSError:
+                    pass
+                continue
+            # Abort before writing a file that would blow the extracted-size budget,
+            # so multi-gigabyte ML-model rootfs are skipped fast without filling disk.
+            if max_extract_bytes and written + member.size > max_extract_bytes:
+                raise ImageTooLarge(f"extracted rootfs exceeds {max_extract_bytes} bytes")
+            try:
                 os.makedirs(os.path.dirname(target), exist_ok=True)
                 src = tar.extractfile(member)
                 if src is None:
                     continue
                 with src, open(target, "wb") as out:
-                    out.write(src.read())
+                    while True:
+                        chunk = src.read(1 << 20)
+                        if not chunk:
+                            break
+                        out.write(chunk)
+                        written += len(chunk)
             except (OSError, tarfile.TarError):
                 continue
 
@@ -115,7 +128,7 @@ def export_rootfs(reference: str, dest: str, crane_bin: str = "crane", timeout_s
             rc, _, error = _crane([crane_bin, "export", *plat, pinned, tar_path], timeout_s)
             if rc == 0 and os.path.exists(tar_path):
                 try:
-                    _safe_extract(tar_path, dest)
+                    _safe_extract(tar_path, dest, max_extract_bytes)
                 finally:
                     if os.path.exists(tar_path):
                         os.remove(tar_path)
