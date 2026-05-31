@@ -8,6 +8,7 @@ are reported as decay rather than masked by retries.
 
 from __future__ import annotations
 
+import json
 import os
 import subprocess
 import tarfile
@@ -20,6 +21,11 @@ _PERMANENT = ("MANIFEST_UNKNOWN", "NAME_UNKNOWN", "NOT FOUND", "MANIFEST UNKNOWN
 
 class ImagePullError(RuntimeError):
     pass
+
+
+class ImageTooLarge(ImagePullError):
+    """The image's compressed size exceeds the configured budget; skipped on purpose
+    (recorded as its own stratum, not a pull failure or decay)."""
 
 
 def _permanent(message: str) -> bool:
@@ -75,9 +81,25 @@ def image_digest(reference: str, crane_bin: str = "crane", timeout_s: int = 120,
     return digest if rc == 0 and digest else None
 
 
+def _compressed_size(crane_bin: str, pinned: str, plat: list[str], timeout_s: int) -> int | None:
+    """Total compressed size (layers + config) from the manifest, without pulling."""
+    rc, out, _ = _crane([crane_bin, "manifest", *plat, pinned], timeout_s)
+    if rc != 0 or not out:
+        return None
+    try:
+        manifest = json.loads(out)
+    except ValueError:
+        return None
+    layers = manifest.get("layers", [])
+    return sum(int(l.get("size", 0)) for l in layers) + int(manifest.get("config", {}).get("size", 0))
+
+
 def export_rootfs(reference: str, dest: str, crane_bin: str = "crane", timeout_s: int = 300,
-                  retries: int = 3, backoff_s: float = 5.0, platform: str = "linux/amd64") -> str:
-    """Resolve, pull-by-digest, and flatten `reference` into `dest`; return the digest."""
+                  retries: int = 3, backoff_s: float = 5.0, platform: str = "linux/amd64",
+                  max_bytes: int = 0) -> str:
+    """Resolve, pull-by-digest, and flatten `reference` into `dest`; return the digest.
+    Images whose compressed size exceeds `max_bytes` (when set) are skipped before the
+    pull and reported via `ImageTooLarge`, so they neither stall workers nor fill disk."""
     os.makedirs(dest, exist_ok=True)
     tar_path = dest.rstrip("/") + ".tar"
     plat = ["--platform", platform] if platform else []
@@ -86,6 +108,10 @@ def export_rootfs(reference: str, dest: str, crane_bin: str = "crane", timeout_s
         rc, digest, error = _crane([crane_bin, "digest", *plat, reference], min(timeout_s, 120))
         if rc == 0 and digest:
             pinned = pin_to_digest(reference, digest)
+            if max_bytes:
+                size = _compressed_size(crane_bin, pinned, plat, min(timeout_s, 120))
+                if size is not None and size > max_bytes:
+                    raise ImageTooLarge(f"{reference}: too_large ({size} > {max_bytes} bytes)")
             rc, _, error = _crane([crane_bin, "export", *plat, pinned, tar_path], timeout_s)
             if rc == 0 and os.path.exists(tar_path):
                 try:
