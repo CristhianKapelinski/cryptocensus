@@ -26,10 +26,21 @@ class TaskQueue:
         return bool(self._r.ping())
 
     # --- tasks -------------------------------------------------------------
-    def enqueue(self, references: Iterable[str]) -> int:
-        refs = [r for r in references if r]
+    def enqueue(self, references: Iterable[str], skip_done: bool = True) -> int:
+        """Enqueue references, de-duplicated within the batch and (by default) against
+        the done set, so re-seeding after a partial or interrupted run is idempotent
+        and never piles duplicate work onto the queue."""
+        refs = list(dict.fromkeys(r for r in references if r))
         if not refs:
             return 0
+        if skip_done:
+            pipe = self._r.pipeline()
+            for ref in refs:
+                pipe.sismember(self._s.done_set, ref)
+            already = pipe.execute()
+            refs = [ref for ref, done in zip(refs, already) if not done]
+            if not refs:
+                return 0
         return int(self._r.lpush(self._s.task_queue, *refs))
 
     def claim(self) -> str | None:

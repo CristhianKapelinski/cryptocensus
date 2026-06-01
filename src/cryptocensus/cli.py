@@ -36,6 +36,8 @@ def _build_parser() -> argparse.ArgumentParser:
 
     p_seed = sub.add_parser("seed", help="enqueue image references")
     p_seed.add_argument("--file", help="file with one image reference per line")
+    p_seed.add_argument("--force", action="store_true",
+                        help="re-enqueue even references already processed (default skips them)")
     p_seed.add_argument("refs", nargs="*", help="image references given inline")
 
     p_work = sub.add_parser("work", help="run a worker loop")
@@ -66,7 +68,7 @@ def main(argv: list[str] | None = None) -> int:
         if not refs:
             print("no references to seed", file=sys.stderr)
             return 2
-        print(f"seeded {seed(refs)} references")
+        print(f"seeded {seed(refs, force=args.force)} references")
         return 0
 
     if args.command == "work":
