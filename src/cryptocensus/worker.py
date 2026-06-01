@@ -45,6 +45,22 @@ def _force_rmtree(path: str) -> None:
     shutil.rmtree(path, ignore_errors=True)
 
 
+_TRANSIENT_MARKERS = (
+    "no space left", "errno 28", "register layer", "write /", "timed out", "timeout",
+    "deadline exceeded", "too many requests", "toomanyrequests", "429",
+    "connection reset", "i/o timeout", "temporary failure", "unexpected eof",
+)
+
+
+def _is_transient(error: str | None) -> bool:
+    """A disk/network/rate-limit failure that must be retried, not recorded as a (false)
+    terminal result. Distinct from permanent decay (missing tag/repo) and from too-large."""
+    if not error:
+        return False
+    low = error.lower()
+    return any(marker in low for marker in _TRANSIENT_MARKERS)
+
+
 def process_image(reference: str, s: Settings) -> tuple[ImageResult, dict]:
     """Pull (by resolved digest), flatten, and analyze a single image. Returns the
     structured result and a `raw` bundle (blobs, full tool outputs, log). Expected
@@ -126,6 +142,13 @@ def run_worker(s: Settings | None = None, idle_exit: int = 0) -> None:
             log.exception("unexpected error on %s", reference)
             result = ImageResult(reference=reference, digest=None, ok=False, error=f"unexpected: {exc}")
             raw = {"log": f"unexpected: {exc}"}
+        if (not result.ok and _is_transient(result.error)
+                and queue.transient_retry(reference) <= s.max_transient_retries):
+            # Disk/network/rate-limit failure: return the task for a later attempt or a
+            # healthier worker instead of poisoning the dataset with a false unavailable.
+            log.warning("transient failure on %s (%s); requeuing", reference, result.error)
+            queue.requeue(reference)
+            continue
         try:
             queue.push_result(encode_bundle(result, raw))
         except Exception:

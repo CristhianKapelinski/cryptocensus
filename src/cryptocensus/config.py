@@ -19,6 +19,7 @@ class Settings:
     processing_queue: str = os.environ.get("CC_PROCESSING_QUEUE", "cryptocensus:processing")
     result_queue: str = os.environ.get("CC_RESULT_QUEUE", "cryptocensus:results")
     done_set: str = os.environ.get("CC_DONE_SET", "cryptocensus:done")
+    retry_hash: str = os.environ.get("CC_RETRY_HASH", "cryptocensus:retries")
 
     # Where each worker writes the full per-image output bundle (records, CBOM, raw
     # tool outputs, and deduplicated crypto blobs). On a multi-machine run this is a
@@ -48,6 +49,7 @@ class Settings:
     pull_timeout_s: int = int(os.environ.get("CC_PULL_TIMEOUT_S", "300"))
     tool_timeout_s: int = int(os.environ.get("CC_TOOL_TIMEOUT_S", "300"))
     pull_retries: int = int(os.environ.get("CC_PULL_RETRIES", "3"))
+    max_transient_retries: int = int(os.environ.get("CC_MAX_TRANSIENT_RETRIES", "5"))
     pull_retry_backoff_s: float = float(os.environ.get("CC_PULL_RETRY_BACKOFF_S", "5"))
     platform: str = os.environ.get("CC_PLATFORM", "linux/amd64")
     work_dir: str = os.environ.get("CC_WORK_DIR", "/tmp/cryptocensus")

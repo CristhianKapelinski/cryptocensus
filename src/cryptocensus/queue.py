@@ -60,6 +60,20 @@ class TaskQueue:
             moved += 1
         return moved
 
+    def requeue(self, reference: str) -> None:
+        """Return one in-flight reference to the pending queue (transient failure): it is
+        neither acked nor marked done, so a later attempt or another worker retries it,
+        instead of recording a false-negative result."""
+        pipe = self._r.pipeline()
+        pipe.lrem(self._s.processing_queue, 1, reference)
+        pipe.lpush(self._s.task_queue, reference)
+        pipe.execute()
+
+    def transient_retry(self, reference: str) -> int:
+        """Increment and return how many times this reference has hit a transient error,
+        so the worker can stop requeuing after a bounded number of attempts."""
+        return int(self._r.hincrby(self._s.retry_hash, reference, 1))
+
     # --- results -----------------------------------------------------------
     def push_result(self, payload: str) -> None:
         """`payload` is a base64(gzip(json)) bundle produced by the worker."""

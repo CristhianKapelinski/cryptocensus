@@ -20,6 +20,7 @@ import os
 from collections import Counter, defaultdict
 
 from .batchgcd import batch_gcd
+from .stats import wilson_pct
 
 
 def _load(dataset_dir: str) -> list[dict]:
@@ -34,9 +35,38 @@ def _pct(part: int, whole: int) -> float:
     return round(100.0 * part / whole, 2) if whole else 0.0
 
 
+def _reach_class(error: str | None) -> str:
+    """Bucket an unavailable image by why it failed, so genuine decay (a reference that
+    resolves to nothing) is separated from a bounded/oversized extraction (`too_large`),
+    a disk/network artifact (`infra`), an arch/auth issue, or anything else. Only `gone`
+    counts toward decay; the rest are alive images we did not (fully) scan."""
+    e = (error or "").lower()
+    if "too_large" in e or "exceeds" in e:
+        return "too_large"
+    if "no space" in e or "errno 28" in e or "register layer" in e or "write /" in e:
+        return "infra"
+    if "no matching" in e or "no child with platform" in e or "platform" in e:
+        return "arch"
+    if any(s in e for s in ("denied", "unauthorized", "forbidden", "authentication required")):
+        return "auth"
+    if any(s in e for s in ("not found", "manifest unknown", "manifest_unknown", "name unknown",
+                            "name_unknown", "does not exist", "no such", "failed to resolve",
+                            "unknown tag")):
+        return "gone"
+    return "other"
+
+
 def analyze(dataset_dir: str) -> dict:
     images = _load(dataset_dir)
     ok = [im for im in images if im.get("ok")]
+
+    # Reachability: only references that resolve to nothing ("gone") are decay; disk
+    # artifacts, too-large extractions, arch/auth failures are alive-but-unscanned.
+    reach = Counter(_reach_class(im.get("error")) for im in images if not im.get("ok"))
+    reach["scanned"] = len(ok)
+    genuine_decay = reach.get("gone", 0)
+    decay_den = len(ok) + genuine_decay
+    decay_lo, decay_hi = wilson_pct(genuine_decay, decay_den)
 
     all_certs, own_certs = [], []
     own_keys, all_keys = [], []
@@ -101,6 +131,12 @@ def analyze(dataset_dir: str) -> dict:
         "images_ok": len(ok),
         "images_unavailable": len(images) - len(ok),
         "unavailable_pct": _pct(len(images) - len(ok), len(images)),
+        "reachability": dict(reach),
+        "genuine_decay": genuine_decay,
+        "too_large": reach.get("too_large", 0),
+        "decay_denominator": decay_den,
+        "decay_pct": _pct(genuine_decay, decay_den),
+        "decay_ci95": [decay_lo, decay_hi],
         "public_key_assets": len(pk_assets),
         "quantum_vulnerable": qv,
         "quantum_vulnerable_pct": _pct(qv, len(pk_assets)),
@@ -165,7 +201,10 @@ def format_report(summary: dict) -> str:
         "CRYPTOCENSUS — RESULTS",
         "=" * 64,
         f"images analyzed (ok/total)      : {s['images_ok']}/{s['images_total']}",
-        f"  unavailable (decay/no latest) : {s['images_unavailable']} ({s['unavailable_pct']}%)",
+        f"  unavailable (raw)             : {s['images_unavailable']} ({s['unavailable_pct']}%)",
+        f"  genuine decay                 : {s['decay_pct']}% (95% CI {s['decay_ci95'][0]}-{s['decay_ci95'][1]}, n={s['decay_denominator']})",
+        f"  too-large stratum             : {s['too_large']}",
+        f"  reachability                  : {s['reachability']}",
         f"public-key assets catalogued    : {s['public_key_assets']}",
         f"  quantum-vulnerable            : {s['quantum_vulnerable']} ({s['quantum_vulnerable_pct']}%)",
         f"  post-quantum                  : {s['post_quantum']} ({s['post_quantum_pct']}%)",
