@@ -18,7 +18,7 @@ import time
 from .cbom import build_cbom
 from .config import Settings, settings as default_settings
 from .extractors import cbom_lens, certs_keys, libraries, sbom, secrets
-from .image import ImagePullError, export_rootfs
+from .image import ImagePullError, ensure_login, export_rootfs
 from .queue import TaskQueue
 from .schema import ImageResult, ToolObservation
 from .transport import encode_bundle
@@ -144,7 +144,19 @@ def run_worker(s: Settings | None = None, idle_exit: int = 0) -> None:
     s = s or default_settings
     queue = TaskQueue(s)
     idle = 0
-    log.info("worker started; redis=%s", s.redis_url)
+    # crane needs a *writable* config to store the identity token from `auth login`; the
+    # mounted credentials are typically read-only, so copy them to a writable location and
+    # point crane at it before logging in.
+    if s.docker_config and os.path.exists(os.path.join(s.docker_config, "config.json")):
+        writable = "/tmp/cc-dockercfg"
+        os.makedirs(writable, exist_ok=True)
+        shutil.copy(os.path.join(s.docker_config, "config.json"),
+                    os.path.join(writable, "config.json"))
+        os.environ["DOCKER_CONFIG"] = writable
+        login_status = ensure_login(s.crane_bin, s.registry, writable)
+    else:
+        login_status = ensure_login(s.crane_bin, s.registry, s.docker_config or None)
+    log.info("worker started; redis=%s; registry auth: %s", s.redis_url, login_status)
     while True:
         reference = queue.claim()
         if reference is None:

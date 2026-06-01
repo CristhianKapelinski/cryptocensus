@@ -63,6 +63,8 @@ class Settings:
     pull_mutex_wait_s: float = float(os.environ.get("CC_PULL_MUTEX_WAIT_S", "0.25"))
     pull_retry_backoff_s: float = float(os.environ.get("CC_PULL_RETRY_BACKOFF_S", "5"))
     platform: str = os.environ.get("CC_PLATFORM", "linux/amd64")
+    registry: str = os.environ.get("CC_REGISTRY", "index.docker.io")
+    docker_config: str = os.environ.get("DOCKER_CONFIG", "")
     work_dir: str = os.environ.get("CC_WORK_DIR", "/tmp/cryptocensus")
     claim_block_s: int = int(os.environ.get("CC_CLAIM_BLOCK_S", "5"))
 

@@ -87,6 +87,33 @@ def _safe_extract(tar_path: str, dest: str, max_extract_bytes: int = 0) -> None:
                 continue
 
 
+def ensure_login(crane_bin: str, registry: str, docker_config: str | None) -> str:
+    """Pre-authenticate crane against the registry from the mounted Docker config.
+
+    Without this, go-containerregistry issues the first manifest request anonymously and
+    only sends credentials after a 401 challenge; once the host's anonymous quota is
+    exhausted the registry returns 429 *before* the challenge, so crane never upgrades to
+    the authenticated (unlimited) path and every pull fails with TOOMANYREQUESTS. Logging
+    in up front writes an identity token that crane sends on the first request.
+    Returns a status string for the worker log; never raises (best-effort)."""
+    if not docker_config:
+        return "no DOCKER_CONFIG; skipping login"
+    cfg = os.path.join(docker_config, "config.json")
+    try:
+        with open(cfg) as fh:
+            auths = json.load(fh).get("auths", {})
+        entry = auths.get("https://index.docker.io/v1/") or next(iter(auths.values()), None)
+        if not entry or not entry.get("auth"):
+            return "no auth entry in config; anonymous"
+        import base64
+        user, _, secret = base64.b64decode(entry["auth"]).decode().partition(":")
+    except (OSError, ValueError, KeyError):
+        return "could not read auth; anonymous"
+    proc = subprocess.run([crane_bin, "auth", "login", registry, "-u", user, "-p", secret],
+                          capture_output=True, text=True, timeout=60)
+    return f"logged in as {user}" if proc.returncode == 0 else f"login failed: {proc.stderr.strip()[:120]}"
+
+
 def image_digest(reference: str, crane_bin: str = "crane", timeout_s: int = 120,
                  platform: str = "linux/amd64") -> str | None:
     plat = ["--platform", platform] if platform else []
