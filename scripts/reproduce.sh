@@ -13,7 +13,7 @@ cd "$(dirname "$0")/.."
 
 DATASET="${1:-$(pwd)/dataset}"
 IMAGE="${CC_IMAGE:-cryptocensus:latest}"
-DATASET_URL="${CC_DATASET_URL:-https://github.com/CristhianKapelinski/cryptocensus/releases/latest/download/dataset.tar.gz}"
+DATASET_URL="${CC_DATASET_URL:-https://github.com/AnonAuthorAnonAuthor/cryptocensus/releases/latest/download/dataset.tar.gz}"
 
 if [ ! -d "$DATASET/records" ]; then
   echo "==> Released dataset not found; downloading (~1 min)"
