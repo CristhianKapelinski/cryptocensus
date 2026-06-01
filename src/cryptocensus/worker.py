@@ -13,6 +13,7 @@ import logging
 import os
 import re
 import shutil
+import time
 
 from .cbom import build_cbom
 from .config import Settings, settings as default_settings
@@ -61,7 +62,28 @@ def _is_transient(error: str | None) -> bool:
     return any(marker in low for marker in _TRANSIENT_MARKERS)
 
 
-def process_image(reference: str, s: Settings) -> tuple[ImageResult, dict]:
+def _pull_locked(reference, work, s, queue):
+    """Pull and flatten under the host pull mutex (one download at a time per node), so
+    concurrent workers do not flood the registry and trip its pull-rate limit. Only the
+    pull holds the lock; extraction afterwards runs unlocked and in parallel."""
+    if not (queue and s.pull_mutex_enabled):
+        return export_rootfs(reference, work, crane_bin=s.crane_bin, timeout_s=s.pull_timeout_s,
+                             retries=s.pull_retries, backoff_s=s.pull_retry_backoff_s,
+                             platform=s.platform, max_bytes=s.max_image_bytes,
+                             max_extract_bytes=s.max_extract_bytes)
+    token = f"{os.getpid()}-{_safe_name(reference)}"
+    while not queue.acquire_pull_lock(token):
+        time.sleep(s.pull_mutex_wait_s)
+    try:
+        return export_rootfs(reference, work, crane_bin=s.crane_bin, timeout_s=s.pull_timeout_s,
+                             retries=s.pull_retries, backoff_s=s.pull_retry_backoff_s,
+                             platform=s.platform, max_bytes=s.max_image_bytes,
+                             max_extract_bytes=s.max_extract_bytes)
+    finally:
+        queue.release_pull_lock(token)
+
+
+def process_image(reference: str, s: Settings, queue: "TaskQueue | None" = None) -> tuple[ImageResult, dict]:
     """Pull (by resolved digest), flatten, and analyze a single image. Returns the
     structured result and a `raw` bundle (blobs, full tool outputs, log). Expected
     failures (pull/parse) are returned as a non-ok result, never raised."""
@@ -72,10 +94,7 @@ def process_image(reference: str, s: Settings) -> tuple[ImageResult, dict]:
     work = os.path.join(s.work_dir, _safe_name(reference))
     _force_rmtree(work)
     try:
-        digest = export_rootfs(reference, work, crane_bin=s.crane_bin, timeout_s=s.pull_timeout_s,
-                               retries=s.pull_retries, backoff_s=s.pull_retry_backoff_s,
-                               platform=s.platform, max_bytes=s.max_image_bytes,
-                               max_extract_bytes=s.max_extract_bytes)
+        digest = _pull_locked(reference, work, s, queue)
         events.append(f"pull ok: {reference} -> {digest}")
     except ImagePullError as exc:
         events.append(f"pull failed: {exc}")
@@ -137,7 +156,7 @@ def run_worker(s: Settings | None = None, idle_exit: int = 0) -> None:
         idle = 0
         log.info("processing %s", reference)
         try:
-            result, raw = process_image(reference, s)
+            result, raw = process_image(reference, s, queue)
         except Exception as exc:  # defensive: a worker must never die on one image
             log.exception("unexpected error on %s", reference)
             result = ImageResult(reference=reference, digest=None, ok=False, error=f"unexpected: {exc}")

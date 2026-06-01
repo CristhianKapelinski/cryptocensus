@@ -74,6 +74,22 @@ class TaskQueue:
         so the worker can stop requeuing after a bounded number of attempts."""
         return int(self._r.hincrby(self._s.retry_hash, reference, 1))
 
+    # --- pull mutex (one download at a time per host) ----------------------
+    def acquire_pull_lock(self, token: str) -> bool:
+        """Try to take the host-scoped pull lock. The TTL releases it automatically if
+        the holder dies, so a crashed worker never deadlocks its peers."""
+        return bool(self._r.set(self._s.pull_mutex_key, token, nx=True, ex=self._s.pull_mutex_ttl_s))
+
+    def release_pull_lock(self, token: str) -> None:
+        """Release the lock only if we still hold it (compare token), so we never free a
+        lock that the TTL already handed to another worker."""
+        script = ("if redis.call('get', KEYS[1]) == ARGV[1] then "
+                  "return redis.call('del', KEYS[1]) else return 0 end")
+        try:
+            self._r.eval(script, 1, self._s.pull_mutex_key, token)
+        except Exception:
+            pass
+
     # --- results -----------------------------------------------------------
     def push_result(self, payload: str) -> None:
         """`payload` is a base64(gzip(json)) bundle produced by the worker."""

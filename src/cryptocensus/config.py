@@ -5,6 +5,7 @@ runs unchanged as a coordinator, a worker, or an analyzer across many machines.
 from __future__ import annotations
 
 import os
+import socket
 from dataclasses import dataclass
 
 
@@ -50,6 +51,16 @@ class Settings:
     tool_timeout_s: int = int(os.environ.get("CC_TOOL_TIMEOUT_S", "300"))
     pull_retries: int = int(os.environ.get("CC_PULL_RETRIES", "3"))
     max_transient_retries: int = int(os.environ.get("CC_MAX_TRANSIENT_RETRIES", "5"))
+
+    # Serialize pulls per host: workers on the same machine acquire a Redis lock before
+    # pulling, so only one image downloads at a time per node. This keeps concurrent
+    # requests low enough to stay under the registry's pull-rate limit while extraction
+    # still runs in parallel. The lock is scoped to the host so the separate-network
+    # machines still pull in parallel with each other.
+    pull_mutex_enabled: bool = _flag("CC_PULL_MUTEX", True)
+    pull_mutex_key: str = os.environ.get("CC_PULL_MUTEX_KEY", f"cryptocensus:pulllock:{socket.gethostname()}")
+    pull_mutex_ttl_s: int = int(os.environ.get("CC_PULL_MUTEX_TTL_S", "600"))
+    pull_mutex_wait_s: float = float(os.environ.get("CC_PULL_MUTEX_WAIT_S", "0.25"))
     pull_retry_backoff_s: float = float(os.environ.get("CC_PULL_RETRY_BACKOFF_S", "5"))
     platform: str = os.environ.get("CC_PLATFORM", "linux/amd64")
     work_dir: str = os.environ.get("CC_WORK_DIR", "/tmp/cryptocensus")
