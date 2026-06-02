@@ -70,6 +70,12 @@ def pq_status(algorithm: str) -> str:
     for t in tokens:
         if t in QUANTUM_VULNERABLE_FAMILIES:
             return "quantum-vulnerable"
+    # Some parsers report the public-key class name rather than the bare family
+    # (e.g. "X25519PUBLICKEY", "ED25519PRIVATEKEY"); match a vulnerable family as a
+    # substring so these classical schemes are not left "unknown".
+    for family in QUANTUM_VULNERABLE_FAMILIES:
+        if family in n:
+            return "quantum-vulnerable"
     for t in tokens:
         if t in SYMMETRIC_FAMILIES:
             return "symmetric"
