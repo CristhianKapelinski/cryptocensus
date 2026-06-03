@@ -16,18 +16,27 @@ This README follows the SBC artifact-evaluation checklist.
 
 ## Quick start for reviewers (copy-paste, runs everything)
 
-Two commands reproduce everything end to end; each is self-contained, builds what it
+Two commands confirm the artifact end to end; each is self-contained, builds what it
 needs, and prints its result. Total **≈ 8 minutes on a laptop** (no GPU).
 
 ```bash
 git clone https://github.com/AnonAuthorAnonAuthor/cryptocensus && cd cryptocensus
 bash scripts/minimal_test.sh    # SeloF: builds image + runs the full pipeline on 8 images   (~5 min)
-bash scripts/reproduce.sh       # SeloR: downloads the dataset + reproduces Claim #1          (~2 min)
+bash scripts/reproduce.sh       # SeloR: downloads the released dataset + reproduces the results (~2 min)
 ```
 
 Optional unit tests, no Docker (~1 min): `uv sync --extra dev && uv run pytest`.
-Nothing else is needed: `reproduce.sh` fetches the released dataset automatically and both
-scripts build the pinned image if it is missing. Details and per-badge notes follow.
+
+### Two reproduction modes
+
+- **Mode A, from the collected data (fast, ~2 min):** `scripts/reproduce.sh` downloads the
+  released digest-pinned dataset, verifies its `SHA256SUMS`, and re-runs the deterministic
+  analyzer to regenerate `summary.json` (the numbers in the paper).
+- **Mode B, from scratch (hours):** `scripts/reproduce_from_scratch.sh` re-pulls every image
+  in the published sampling frame by content digest, re-extracts its cryptographic material,
+  and re-runs the analysis, regenerating the dataset rather than trusting the released one.
+  Network-bound; authenticated Docker Hub pulls recommended. Use `config/sample-images.txt`
+  for a fast smoke run, `config/sample-20000.txt` for the full frame.
 
 ## README structure
 
@@ -37,7 +46,7 @@ Dockerfile           single pinned image with all third-party tools
 docker-compose.yml   single-host stack: redis + workers + tools
 src/cryptocensus/    Python package (sampler, queue, extractors, analyzer, CLI)
 config/              sampling frames: sample-images.txt (minimal), sample-20000.txt (full)
-scripts/             minimal_test.sh, reproduce.sh, deploy_fleet.sh
+scripts/             minimal_test.sh, reproduce.sh (mode A), reproduce_from_scratch.sh (mode B), deploy_fleet.sh
 docs/                ARCHITECTURE.md, ARTIFACT.md, RUNBOOK.md
 tests/               unit tests (no Docker, no network)
 LICENSE              MIT
