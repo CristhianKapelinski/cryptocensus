@@ -24,6 +24,9 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import dh, dsa, ec, ed448, ed25519, rsa
 from cryptography.utils import CryptographyDeprecationWarning
 
+from ..classify import is_weak_key, is_weak_signature_hash, pq_status
+from ..schema import CertRecord, KeyRecord, WeakConfigRecord
+
 # Some legacy root CAs in trust bundles carry non-positive serial numbers (disallowed
 # by RFC 5280). cryptography emits a deprecation warning when parsing them; we parse
 # defensively and skip on hard failure, so the warning is benign noise. Suppress only
@@ -31,9 +34,6 @@ from cryptography.utils import CryptographyDeprecationWarning
 warnings.filterwarnings(
     "ignore", message="Parsed a serial number", category=CryptographyDeprecationWarning
 )
-
-from ..classify import is_weak_key, is_weak_signature_hash, pq_status
-from ..schema import CertRecord, KeyRecord, WeakConfigRecord
 
 _TRUST_MARKERS = (
     "/etc/ssl/certs/",

@@ -29,9 +29,12 @@ if [ ! -d "$DATASET/records" ]; then
     echo "    bash scripts/reproduce.sh /path/to/extracted/dataset"
     exit 1
   fi
-  if curl -fsSL "${DATASET_URL%/*}/SHA256SUMS" -o /tmp/cc-sha 2>/dev/null; then
-    ( cd /tmp && grep cryptocensus-dataset.tar.gz cc-sha | sha256sum -c - ) || { echo "checksum FAILED"; exit 1; }
+  if ! curl -fsSL "${DATASET_URL%/*}/SHA256SUMS" -o /tmp/cc-sha; then
+    echo "Could not fetch SHA256SUMS from ${DATASET_URL%/*}/SHA256SUMS; refusing to use an unverified download."
+    exit 1
   fi
+  cp /tmp/cc-dataset.tar.gz /tmp/cryptocensus-dataset.tar.gz
+  ( cd /tmp && grep cryptocensus-dataset.tar.gz cc-sha | sha256sum -c - ) || { echo "checksum FAILED"; exit 1; }
   tar -xzf /tmp/cc-dataset.tar.gz -C "$DATASET" --strip-components=0
 fi
 

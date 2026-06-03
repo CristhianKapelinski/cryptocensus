@@ -8,6 +8,7 @@ are reported as decay rather than masked by retries.
 
 from __future__ import annotations
 
+import base64
 import json
 import os
 import subprocess
@@ -105,7 +106,6 @@ def ensure_login(crane_bin: str, registry: str, docker_config: str | None) -> st
         entry = auths.get("https://index.docker.io/v1/") or next(iter(auths.values()), None)
         if not entry or not entry.get("auth"):
             return "no auth entry in config; anonymous"
-        import base64
         user, _, secret = base64.b64decode(entry["auth"]).decode().partition(":")
     except (OSError, ValueError, KeyError):
         return "could not read auth; anonymous"
@@ -131,7 +131,7 @@ def _compressed_size(crane_bin: str, pinned: str, plat: list[str], timeout_s: in
     except ValueError:
         return None
     layers = manifest.get("layers", [])
-    return sum(int(l.get("size", 0)) for l in layers) + int(manifest.get("config", {}).get("size", 0))
+    return sum(int(layer.get("size", 0)) for layer in layers) + int(manifest.get("config", {}).get("size", 0))
 
 
 def export_rootfs(reference: str, dest: str, crane_bin: str = "crane", timeout_s: int = 300,

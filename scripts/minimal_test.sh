@@ -24,7 +24,11 @@ echo "==> Starting Redis"
 docker network create "${NET}" >/dev/null 2>&1 || true
 docker run -d --name "${REDIS}" --network "${NET}" redis:7-alpine \
   redis-server --save "" --appendonly no >/dev/null
-sleep 2
+echo "==> Waiting for Redis"
+for _ in $(seq 1 30); do
+  docker exec "${REDIS}" redis-cli ping 2>/dev/null | grep -q PONG && break
+  sleep 1
+done
 
 run() { docker run --rm --user "$(id -u):$(id -g)" --network "${NET}" -e "CC_REDIS_URL=${REDIS_URL}" "$@"; }
 

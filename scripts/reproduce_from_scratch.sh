@@ -34,14 +34,18 @@ echo "==> Frame checksum: $(sha256sum "$FRAME" | cut -d' ' -f1)"
 
 docker image inspect "$IMAGE" >/dev/null 2>&1 || { echo "==> Building image"; docker build -t "$IMAGE" .; }
 
-cleanup() { docker rm -f "$REDIS" cc-w-1 cc-w-2 cc-w-3 cc-w-4 cc-w-5 cc-w-6 cc-w-7 cc-w-8 >/dev/null 2>&1 || true; }
+cleanup() { docker rm -f "$REDIS" $(docker ps -aq --filter name='cc-w-') >/dev/null 2>&1 || true; }
 trap cleanup EXIT
 cleanup
 
 docker network create "$NET" >/dev/null 2>&1 || true
 docker run -d --name "$REDIS" --network "$NET" redis:7-alpine \
   redis-server --save "" --appendonly no >/dev/null
-sleep 2
+echo "==> Waiting for Redis"
+for _ in $(seq 1 30); do
+  docker exec "$REDIS" redis-cli ping 2>/dev/null | grep -q PONG && break
+  sleep 1
+done
 
 mnt=""
 [ -n "$DOCKER_CFG" ] && mnt="-v $DOCKER_CFG:/cc-dockercfg:ro -e DOCKER_CONFIG=/cc-dockercfg"

@@ -4,15 +4,19 @@
 readiness of public container images.**
 
 This repository is the research artifact for the paper *"CryptoCensus: Cryptographic
-Posture and Post-Quantum Readiness of Docker Hub"* (WTICG/SBSeg 2026). It pulls a
+Posture and Post-Quantum Readiness of Docker Hub"*. It pulls a
 uniform-random sample of Docker Hub images pinned by content digest, extracts the
 certificates, keys, cryptographic libraries, and weak TLS/SSH configuration each one
 ships, and reports how much of that material is weak, expired, reused, or
 **quantum-vulnerable (RSA/ECC) versus post-quantum ready** (NIST FIPS 203/204/205;
-IR 8547). The artifact reproduces every quantitative claim in the paper from the
-released dataset.
+IR 8547). Across the measured sample of **11,962 images and 4,211,380 public-key
+assets, 100% are quantum-vulnerable and 0% are post-quantum.** The artifact reproduces
+every quantitative claim in the paper from the released dataset.
 
-This README follows the SBC artifact-evaluation checklist.
+> **Paper:** *CryptoCensus: Cryptographic Posture and Post-Quantum Readiness of Docker Hub*, SBSeg 2026 (WTICG).
+
+This README is the single self-contained guide a reviewer needs; it follows the SBC
+artifact-evaluation checklist. The files under `docs/` are complementary.
 
 ## Quick start for reviewers (copy-paste, runs everything)
 
@@ -21,7 +25,7 @@ needs, and prints its result. Total **≈ 8 minutes on a laptop** (no GPU).
 
 ```bash
 git clone https://github.com/AnonAuthorAnonAuthor/cryptocensus && cd cryptocensus
-bash scripts/minimal_test.sh    # SeloF: builds image + runs the full pipeline on 8 images   (~5 min)
+bash scripts/minimal_test.sh    # SeloF: builds image + runs the full pipeline on 5 images   (~5 min)
 bash scripts/reproduce.sh       # SeloR: downloads the released dataset + reproduces the results (~2 min)
 ```
 
@@ -47,7 +51,7 @@ docker-compose.yml   single-host stack: redis + workers + tools
 src/cryptocensus/    Python package (sampler, queue, extractors, analyzer, CLI)
 config/              sampling frames: sample-images.txt (minimal), sample-20000.txt (full)
 scripts/             minimal_test.sh, reproduce.sh (mode A), reproduce_from_scratch.sh (mode B), deploy_fleet.sh
-docs/                ARCHITECTURE.md, ARTIFACT.md, RUNBOOK.md
+docs/                ARCHITECTURE.md (design, sampling frame, full config reference)
 tests/               unit tests (no Docker, no network)
 LICENSE              MIT
 ```
@@ -76,7 +80,8 @@ results are pushed back and merged by a collector into `dataset/`.
 - Network access to Docker Hub to pull the base image, the tooling, and the sampled
   images. Anonymous pulls are rate-limited; a Docker Hub login raises the limit for the
   full census (not needed for the minimal test).
-- For the unit tests only: [uv](https://docs.astral.sh/uv/) (no Docker required).
+- Python: the container ships **3.12**; the package requires **≥ 3.11** and is needed on
+  the host only for the unit tests, via [uv](https://docs.astral.sh/uv/) (no Docker required).
 
 ## Dependencies
 
@@ -125,11 +130,11 @@ uv run pytest                # unit tests: classifier, batch-GCD, extractor (no 
 bash scripts/minimal_test.sh # end-to-end: build → seed → work → collect → analyze
 ```
 
-`scripts/minimal_test.sh` starts Redis and one worker, censuses the eight images in
+`scripts/minimal_test.sh` starts Redis and one worker, censuses the five images in
 `config/sample-images.txt`, and writes `dataset/summary.json`, `dataset/assets.csv`, and
 per-image CBOMs under `dataset/cbom/`, then prints the aggregated report. Expected
-qualitative result on this tiny frame: hundreds of public-key assets, **~100%
-quantum-vulnerable and ~0% post-quantum**, SHA-1 signatures present, most images shipping
+qualitative result on this tiny frame: hundreds of public-key assets, **100%
+quantum-vulnerable and 0% post-quantum**, SHA-1 signatures present, most images shipping
 a PQC-*capable* library while PQC *usage* is 0%, and the built-in extractor's certificate
 count agreeing with CBOM-Lens (the instrument calibration check).
 
@@ -142,10 +147,10 @@ no extra steps.
 
 ### Claim #1 (central result)
 
-Over the uniform-random sample of Docker Hub images, **~100% of public-key assets are
-quantum-vulnerable and 0% are post-quantum**, while about one image in five already ships
-a PQC-*capable* library it never uses (paper Abstract; Section "Post-quantum readiness";
-Figure "Own cryptographic material").
+Over the uniform-random sample of Docker Hub images (11,962 images, 4,211,380 public-key
+assets), **100% of public-key assets are quantum-vulnerable and 0% are post-quantum**,
+while about one image in five already ships a PQC-*capable* library it never uses (paper
+Abstract; Section "Post-quantum readiness"; Figure "Own cryptographic material").
 
 **Reproduce (from the released dataset, single host, no special hardware):**
 
@@ -180,18 +185,11 @@ recovers a crashed worker's in-flight tasks. Our run used commodity x86-64 hosts
 (8-core Intel i7-9700, 32 GB RAM, Debian/Ubuntu); wall-clock scales with worker count and
 Docker Hub pull bandwidth.
 
-## Configuration
-
-All behaviour is environment-driven (`src/cryptocensus/config.py`): `CC_REDIS_URL`, queue
-names, per-extractor toggles (`CC_ENABLE_*`), `CC_WORK_DIR`, pull retries/backoff, and
-timeouts. Nothing is hardcoded; extractors can be disabled individually for ablation.
-
-## Limitations
-
-CryptoCensus measures *deployed cryptographic material* (certificates, keys, configs,
-library versions). It does not decompile binaries to prove an algorithm is invoked at
-runtime; PQC capability is a version signal, not usage. Sampling-frame construction is
-documented in `docs/ARCHITECTURE.md`.
+All behaviour is environment-driven and nothing is hardcoded; the full configuration
+reference (`CC_*` knobs), the sampling-frame construction, and the measurement's
+limitations (it measures *deployed* cryptographic material and treats PQC capability as a
+version signal, not proof of runtime use) are documented in
+[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
 ## License
 
