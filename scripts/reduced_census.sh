@@ -16,15 +16,15 @@ REDIS="cryptocensus-redis"
 REDIS_URL="redis://${REDIS}:6379/0"
 DATASET="$(pwd)/dataset-reduced"
 FRAME="config/sample-20000.txt"
-FRAME_N="$(mktemp)"
+FRAME_N="$DATASET/.frame.txt"   # inside the run folder, never the host /tmp
 
 cleanup() {
-  rm -f "$FRAME_N"
   docker rm -f "$REDIS" >/dev/null 2>&1 || true
   docker network rm "$NET" >/dev/null 2>&1 || true
 }
 trap cleanup EXIT
 
+mkdir -p "$DATASET"
 # First N references of the uniform frame, in its deterministic hash-keyed order.
 # (awk, not `grep | head`, so head closing the pipe cannot SIGPIPE-kill grep under pipefail.)
 awk -v n="$N" 'NF && $1 !~ /^#/ { print; if (++c >= n) exit }' "$FRAME" > "$FRAME_N"
@@ -47,7 +47,6 @@ echo "==> Running one worker (pulls, flattens, extracts) until the queue drains"
 run "$IMAGE" work --idle-exit 5
 
 echo "==> Collecting and analyzing"
-mkdir -p "$DATASET"
 run -v "$DATASET:/data" "$IMAGE" collect --out /data
 run -v "$DATASET:/data" "$IMAGE" analyze --dataset /data
 echo "==> Done. Reduced dataset in $DATASET/ (see summary.json)."

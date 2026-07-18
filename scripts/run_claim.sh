@@ -16,20 +16,23 @@ DATASET_URL="${CC_DATASET_URL:-https://github.com/CristhianKapelinski/cryptocens
 REPO="CristhianKapelinski/cryptocensus"
 
 if [ ! -d "$DATASET/records" ]; then
-  echo "==> Released dataset not found; downloading and verifying"
+  echo "==> Released dataset not found; downloading into $DATASET and verifying"
   mkdir -p "$DATASET"
-  TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
-  tarball="$TMP/cryptocensus-dataset.tar.gz"
+  # Everything stays inside the dataset directory you are running against — never the host
+  # /tmp — so the 1.8 GB download lands on the disk you chose, and is removed after extraction.
+  tarball="$DATASET/cryptocensus-dataset.tar.gz"
+  sums="$DATASET/SHA256SUMS"
   if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
     gh release download dataset-v1 -R "$REPO" -p "$(basename "$tarball")" -O "$tarball" --clobber
-    gh release download dataset-v1 -R "$REPO" -p SHA256SUMS -O "$TMP/SHA256SUMS" --clobber
+    gh release download dataset-v1 -R "$REPO" -p SHA256SUMS -O "$sums" --clobber
   else
     curl -fsSL "$DATASET_URL" -o "$tarball"
-    curl -fsSL "${DATASET_URL%/*}/SHA256SUMS" -o "$TMP/SHA256SUMS"
+    curl -fsSL "${DATASET_URL%/*}/SHA256SUMS" -o "$sums"
   fi
-  ( cd "$TMP" && grep -E 'cryptocensus-dataset\.tar\.gz$' SHA256SUMS | sha256sum -c - ) \
-    || { echo "checksum FAILED"; exit 1; }
+  ( cd "$DATASET" && grep -E 'cryptocensus-dataset\.tar\.gz$' SHA256SUMS | sha256sum -c - ) \
+    || { echo "checksum FAILED"; rm -f "$tarball" "$sums"; exit 1; }
   tar -xzf "$tarball" -C "$DATASET"
+  rm -f "$tarball" "$sums"
 fi
 
 docker image inspect "$IMAGE" >/dev/null 2>&1 || { echo "==> Building image (~3 min)"; docker build -t "$IMAGE" .; }
