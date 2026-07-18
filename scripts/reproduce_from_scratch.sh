@@ -75,8 +75,8 @@ COLLECT=$!
 
 # wait for the queue to drain
 while :; do
-  pend=$(docker run --rm --network "$NET" -e "CC_REDIS_URL=$REDIS_URL" "$IMAGE" stats | grep -oE 'pending[^,]*' | grep -oE '[0-9]+' || echo 0)
-  proc=$(docker run --rm --network "$NET" -e "CC_REDIS_URL=$REDIS_URL" "$IMAGE" stats | grep -oE 'processing[^,]*' | grep -oE '[0-9]+' || echo 0)
+  pend=$(docker run --rm --network "$NET" -e "CC_REDIS_URL=$REDIS_URL" "$IMAGE" stats | grep -oE "'pending': *[0-9]+" | grep -oE '[0-9]+' || echo 0)
+  proc=$(docker run --rm --network "$NET" -e "CC_REDIS_URL=$REDIS_URL" "$IMAGE" stats | grep -oE "'processing': *[0-9]+" | grep -oE '[0-9]+' || echo 0)
   echo "    pending=$pend processing=$proc"
   [ "${pend:-0}" -eq 0 ] && [ "${proc:-0}" -le 2 ] && break
   sleep 30

@@ -7,7 +7,8 @@
 # It (re)builds the pinned image if needed, fetches the released digest-pinned dataset
 # when it is not already present, runs the deterministic analyzer, and prints
 # dataset/summary.json, whose fields are exactly the numbers the paper reports.
-# Expected wall-clock: about 2 minutes (1 core, < 2 GB RAM, no GPU, no live pulls).
+# Expected wall-clock: about 6 minutes (1 core, < 2 GB RAM, no GPU, no live pulls;
+# the batch-GCD pass over 6,116 moduli dominates).
 # To reproduce from scratch (re-pull every image and re-extract), see
 # scripts/reproduce_from_scratch.sh instead.
 set -euo pipefail
@@ -41,7 +42,7 @@ fi
 
 docker image inspect "$IMAGE" >/dev/null 2>&1 || { echo "==> Building image (~3 min)"; docker build -t "$IMAGE" .; }
 
-echo "==> Analyzing dataset (~1 min)"
+echo "==> Analyzing dataset (~5 min; batch-GCD over 6,116 moduli)"
 docker run --rm -v "$DATASET":/data "$IMAGE" analyze --dataset /data
 
 echo "==> Main claim (dataset/summary.json): quantum_vulnerable_pct should be 100.0, post_quantum_pct 0.0"
