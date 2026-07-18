@@ -40,16 +40,14 @@ The seals considered are **Available (SeloD)**, **Functional (SeloF)**, **Sustai
 
 ## Basic information (environment)
 
-- Linux x86-64; **Docker ≥ 24** (Docker Compose v2 optional); tested on Docker 27.5.
-- Host tools: `curl`, `tar`, `sha256sum` (coreutils) to fetch and verify the dataset;
-  `python3 ≥ 3.11` on the host for `run_claim.sh` (figure generation and the assert block).
-  `gh` is used to fetch the release if present, with a `curl` fallback.
-- No GPU. The minimal test runs on any laptop (2 cores, 4 GB RAM, ~2 GB disk).
-- Network access to Docker Hub to pull the base image, the tooling, and the sampled
-  images. Anonymous pulls are rate-limited; a Docker Hub login raises the limit for the
-  full census (not needed for the minimal test).
-- Python: the container ships **3.12**; the package requires **≥ 3.11** and is needed on
-  the host only for the unit tests, via [uv](https://docs.astral.sh/uv/) (no Docker required).
+| | |
+|---|---|
+| **Hardware (paper census)** | commodity x86-64 hosts (8-core Intel i7-9700 · 32 GB RAM · Debian/Ubuntu) |
+| **Minimum (minimal test / Claim #1)** | x86-64 · 2 cores · 4 GB RAM · ~2 GB disk |
+| **OS** | Linux x86-64 (tested on Ubuntu 24.04 / Debian 12) |
+| **Software** | Docker ≥ 24 (tested on 27.5; Compose v2 optional) · Python ≥ 3.11 on the host · [`uv`](https://astral.sh/uv) (the container ships Python 3.12) |
+| **Host tools** | `curl`, `tar`, `sha256sum` (coreutils); `gh` optional (with a `curl` fallback) |
+| **Network** | Docker Hub access for image pulls; anonymous pulls are rate-limited, a Docker Hub login raises the limit for the full census (not needed for the minimal test) |
 
 ## Dependencies
 
@@ -80,13 +78,16 @@ queue you start.
 ## Installation
 
 ```bash
+# 1. Clone the repository
 git clone https://github.com/CristhianKapelinski/cryptocensus && cd cryptocensus
-docker build -t cryptocensus:latest .        # builds the single pinned image
-```
 
-For the unit tests (host, no Docker):
+# 2. Install uv (if not already installed) — used for the unit tests and figure rendering
+curl -LsSf https://astral.sh/uv/install.sh | sh
 
-```bash
+# 3. Build the single pinned image
+docker build -t cryptocensus:latest .
+
+# 4. (host, for the unit tests) install Python dependencies
 uv sync --extra dev
 ```
 
