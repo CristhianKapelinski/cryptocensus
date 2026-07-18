@@ -49,6 +49,9 @@ _WEAK_CIPHER_RE = re.compile(
     rb"\b(RC4|DES|3DES|MD5|NULL|EXPORT|SSLv2|SSLv3|TLSv1\.0|TLSv1\.1)\b", re.IGNORECASE
 )
 _CONFIG_NAMES = {"sshd_config", "ssh_config", "openssl.cnf"}
+# Name hints for .conf/.cnf files that hold TLS/SSH cryptographic settings, used to
+# keep weak-token counts out of unrelated configuration files.
+_CRYPTO_CONFIG_HINTS = ("ssl", "tls", "nginx", "apache", "httpd", "strongswan", "freetds")
 _NOW = datetime.datetime.now(datetime.timezone.utc)
 
 
@@ -170,11 +173,20 @@ def extract(root: str, max_file_bytes: int = 2_000_000):
             trust = _in_trust_store(path)
             lower = filename.lower()
 
-            if filename in _CONFIG_NAMES or lower.endswith((".conf", ".cnf")):
+            # Weak protocol/cipher tokens are recorded only in TLS/SSH cryptographic
+            # configuration files. Scanning every *.conf/*.cnf conflates non-cryptographic
+            # uses (e.g. /dev/null matches NULL, a shell `export` matches EXPORT), so we
+            # restrict to the canonical crypto configs and the config files of TLS-serving
+            # daemons.
+            if filename in _CONFIG_NAMES or (
+                lower.endswith((".conf", ".cnf"))
+                and any(t in lower for t in _CRYPTO_CONFIG_HINTS)
+            ):
                 for token in {m.decode("latin1") for m in _WEAK_CIPHER_RE.findall(data)}:
                     weak_configs.append(WeakConfigRecord(path=rel, token=token))
 
-            # SSH host/public keys.
+            # SSH keys. A private host key is recorded as "ssh"; a .pub file or an
+            # authorized_keys entry is public material and is recorded as "public".
             if filename.startswith("ssh_host_") or lower.endswith(".pub") or "authorized_keys" in lower:
                 try:
                     if b"PRIVATE" in data[:64]:
@@ -182,7 +194,7 @@ def extract(root: str, max_file_bytes: int = 2_000_000):
                         keys.append(_make_key_record(key.public_key(), rel, trust, "ssh"))
                     else:
                         key = serialization.load_ssh_public_key(data.split(b"\n")[0])
-                        keys.append(_make_key_record(key, rel, trust, "ssh"))
+                        keys.append(_make_key_record(key, rel, trust, "public"))
                     keep(data)
                     continue
                 except Exception:
