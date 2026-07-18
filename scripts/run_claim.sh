@@ -30,14 +30,14 @@ if [ ! -d "$DATASET/records" ]; then
   mkdir -p "$DATASET"
   tarball="$DATASET/cryptocensus-dataset.tar.gz"
   fetch "$tarball"
-  if fetch_sums=$(mktemp) && ( command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1 \
-        && gh release download dataset-v1 -R "$REPO" -p SHA256SUMS -O "$fetch_sums" --clobber \
-        || curl -fsSL "${DATASET_URL%/*}/SHA256SUMS" -o "$fetch_sums" ); then
-    ( cd "$DATASET" && grep "$(basename "$tarball")" "$fetch_sums" | sha256sum -c - ) \
-      || { echo "checksum FAILED"; exit 1; }
+  sums="$(mktemp)"
+  if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
+    gh release download dataset-v1 -R "$REPO" -p SHA256SUMS -O "$sums" --clobber
   else
-    echo "WARNING: SHA256SUMS unavailable; proceeding without checksum verification" >&2
-  fi
+    curl -fsSL "${DATASET_URL%/*}/SHA256SUMS" -o "$sums"
+  fi || { echo "Could not fetch SHA256SUMS; refusing to use an unverified download" >&2; exit 1; }
+  ( cd "$DATASET" && grep "$(basename "$tarball")" "$sums" | sha256sum -c - ) \
+    || { echo "checksum FAILED"; exit 1; }
   tar -xzf "$tarball" -C "$DATASET"
   rm -f "$tarball"
 fi

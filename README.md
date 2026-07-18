@@ -21,21 +21,60 @@ artifact-evaluation checklist. The files under `docs/` are complementary.
 ## Quick start for reviewers (copy-paste, runs everything)
 
 Two commands confirm the artifact end to end; each is self-contained, builds what it
-needs, and prints its result. Total **≈ 8 minutes on a laptop** (no GPU).
+needs, and prints its result. Total **≈ 17 minutes on a laptop** (no GPU).
 
 ```bash
 git clone https://github.com/CristhianKapelinski/cryptocensus && cd cryptocensus
-bash scripts/minimal_test.sh    # SeloF: builds image + runs the full pipeline on 5 images   (~5 min)
-bash scripts/reproduce.sh       # SeloR: downloads the released dataset + reproduces the results (~2 min)
+bash scripts/minimal_test.sh    # SeloF: builds image + runs the full pipeline on 5 images         (~5 min)
+bash scripts/run_claim.sh       # SeloR: downloads+verifies the dataset, reproduces every number  (~12 min)
 ```
+
+`run_claim.sh` ends by asserting every paper number against the reproduced value and
+printing the block below; **every row must read `OK` and the last line `RESULT: OK`**:
+
+```
+══════════════════════════════════════════════════════════════
+  Claim: deployed cryptographic posture is not migrating
+  PQC-capable images  : 801 / 11,962  (6.7%)
+  Post-quantum assets : 0 / 4,211,380  (100% quantum-vulnerable)
+  Weak-signature certs: 43.0%
+  RSA keys < 2048-bit : 40,720  (5,552 at 512-bit)
+  Reused fingerprints : 2,412 of 7,141
+  RSA moduli / factorable (batch-GCD): 6,116 / 4
+  Unresolved (decay)  : 36.7%
+══════════════════════════════════════════════════════════════
+  metric                      reproduced         paper   status
+  images_ok                       11,962        11,962   OK
+  public_key_assets            4,211,380     4,211,380   OK
+  pqc_capable_images                 801           801   OK
+  certs_own                      518,668       518,668   OK
+  weak_sig_pct                        43            43   OK
+  rsa_sub2048                     40,720        40,720   OK
+  rsa_512                          5,552         5,552   OK
+  own_keys                       178,455       178,455   OK
+  fingerprints                     7,141         7,141   OK
+  reused                           2,412         2,412   OK
+  rsa_moduli                       6,116         6,116   OK
+  factorable                           4             4   OK
+  decay_pct                         36.7          36.7   OK
+  own_priv_ssh_keys               37,077        37,077   OK
+  reused_deployed                     36            36   OK
+══════════════════════════════════════════════════════════════
+  RESULT: OK  - matches Table 2 of the paper
+══════════════════════════════════════════════════════════════
+```
+
+The faster `scripts/reproduce.sh` (analyzer only, ~6 min) regenerates `summary.json`
+without the figures or the assert block, if you only want the raw numbers.
 
 Optional unit tests, no Docker (~1 min): `uv sync --extra dev && uv run pytest`.
 
 ### Two reproduction modes
 
-- **Mode A, from the collected data (fast, ~2 min):** `scripts/reproduce.sh` downloads the
+- **Mode A, from the collected data (fast, ~6 min):** `scripts/reproduce.sh` downloads the
   released digest-pinned dataset, verifies its `SHA256SUMS`, and re-runs the deterministic
-  analyzer to regenerate `summary.json` (the numbers in the paper).
+  analyzer to regenerate `summary.json` (the numbers in the paper). `scripts/run_claim.sh`
+  additionally regenerates the figures and asserts every number (~12 min).
 - **Mode B, from scratch (hours):** `scripts/reproduce_from_scratch.sh` re-pulls every image
   in the published sampling frame by content digest, re-extracts its cryptographic material,
   and re-runs the analysis, regenerating the dataset rather than trusting the released one.
@@ -75,7 +114,10 @@ results are pushed back and merged by a collector into `dataset/`.
 
 ## Basic information (environment)
 
-- Linux x86-64; **Docker ≥ 24** (Docker Compose v2 optional).
+- Linux x86-64; **Docker ≥ 24** (Docker Compose v2 optional); tested on Docker 27.5.
+- Host tools: `curl`, `tar`, `sha256sum` (coreutils) to fetch and verify the dataset;
+  `python3 ≥ 3.11` on the host for `run_claim.sh` (figure generation and the assert block).
+  `gh` is used to fetch the release if present, with a `curl` fallback.
 - No GPU. The minimal test runs on any laptop (2 cores, 4 GB RAM, ~2 GB disk).
 - Network access to Docker Hub to pull the base image, the tooling, and the sampled
   images. Anonymous pulls are rate-limited; a Docker Hub login raises the limit for the
@@ -85,8 +127,9 @@ results are pushed back and merged by a collector into `dataset/`.
 
 ## Dependencies
 
-All third-party tools are pinned in the `Dockerfile`; no host installation is needed
-beyond Docker (and `uv` for the unit tests).
+All third-party tools that run inside the pipeline are pinned in the `Dockerfile`. On the
+host, the reproduction scripts need only Docker, `curl`/`tar`/`sha256sum`, and `python3`
+(plus `uv` for the unit tests) — all listed under *Basic information* above.
 
 | Tool | Version | Role |
 |------|---------|------|
@@ -168,8 +211,9 @@ Abstract; Section "Post-quantum readiness"; Figure "Own cryptographic material")
 scripts/reproduce.sh dataset
 ```
 
-- **Resources / time:** 1 core, < 2 GB RAM, **≈ 2 minutes**. No GPU. Network is used only
-  once, to download the dataset; the analysis itself runs fully offline on the local files.
+- **Resources / time:** 1 core, < 2 GB RAM, **≈ 6 minutes** (the batch-GCD pass over 6,116
+  moduli dominates). No GPU. Network is used only once, to download the dataset; the
+  analysis itself runs fully offline on the local files.
 - **Expected output:** `dataset/summary.json` shows `quantum_vulnerable_pct: 100.0`,
   `post_quantum_pct: 0.0`, and `images_with_pqc_capable_library` > 0. The same run writes
   `dataset/assets.csv` (one row per asset), from which the paper's figure and confidence
@@ -181,7 +225,8 @@ scripts/reproduce.sh dataset
 
 `scripts/check_claim.py` gates every headline number: the PQC-capable count (801, recomputed
 from library versions), weak signatures (43%), sub-2048-bit RSA (40,720), key reuse (2,412
-own fingerprints; 36 deployed private keys), batch-GCD (4 of 6,116 moduli), and decay (36.7%).
+reused of 7,141 own fingerprints; 36 deployed private keys), batch-GCD (4 of 6,116 moduli),
+and decay (36.7%).
 The headline totals are fields of `dataset/summary.json`; the figure sub-breakdowns are
 recomputed from `dataset/records/` by `scripts/reproduce_figures.py`.
 
