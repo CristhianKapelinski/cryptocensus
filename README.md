@@ -168,7 +168,8 @@ Abstract; Section "Post-quantum readiness"; Figure "Own cryptographic material")
 scripts/reproduce.sh dataset
 ```
 
-- **Resources / time:** 1 core, < 2 GB RAM, **≈ 2 minutes**. No GPU, no network.
+- **Resources / time:** 1 core, < 2 GB RAM, **≈ 2 minutes**. No GPU. Network is used only
+  once, to download the dataset; the analysis itself runs fully offline on the local files.
 - **Expected output:** `dataset/summary.json` shows `quantum_vulnerable_pct: 100.0`,
   `post_quantum_pct: 0.0`, and `images_with_pqc_capable_library` > 0. The same run writes
   `dataset/assets.csv` (one row per asset), from which the paper's figure and confidence
