@@ -29,39 +29,17 @@ bash scripts/minimal_test.sh    # SeloF: builds image + runs the full pipeline o
 bash scripts/run_claim.sh       # SeloR: downloads+verifies the dataset, reproduces every number  (~12 min)
 ```
 
-`run_claim.sh` ends by asserting every paper number against the reproduced value and
-printing the block below; **every row must read `OK` and the last line `RESULT: OK`**:
+`run_claim.sh` asserts every paper number against the reproduced value and ends with the
+block below (it prints one `OK` row per metric in between); **the last line must be `RESULT: OK`**:
 
 ```
-══════════════════════════════════════════════════════════════
   Claim: deployed cryptographic posture is not migrating
   PQC-capable images  : 801 / 11,962  (6.7%)
   Post-quantum assets : 0 / 4,211,380  (100% quantum-vulnerable)
-  Weak-signature certs: 43.0%
-  RSA keys < 2048-bit : 40,720  (5,552 at 512-bit)
-  Reused fingerprints : 2,412 of 7,141
-  RSA moduli / factorable (batch-GCD): 6,116 / 4
-  Unresolved (decay)  : 36.7%
-══════════════════════════════════════════════════════════════
-  metric                      reproduced         paper   status
-  images_ok                       11,962        11,962   OK
-  public_key_assets            4,211,380     4,211,380   OK
-  pqc_capable_images                 801           801   OK
-  certs_own                      518,668       518,668   OK
-  weak_sig_pct                        43            43   OK
-  rsa_sub2048                     40,720        40,720   OK
-  rsa_512                          5,552         5,552   OK
-  own_keys                       178,455       178,455   OK
-  fingerprints                     7,141         7,141   OK
-  reused                           2,412         2,412   OK
-  rsa_moduli                       6,116         6,116   OK
-  factorable                           4             4   OK
-  decay_pct                         36.7          36.7   OK
-  own_priv_ssh_keys               37,077        37,077   OK
-  reused_deployed                     36            36   OK
-══════════════════════════════════════════════════════════════
+  Weak-signature certs: 43.0%  |  RSA < 2048-bit: 40,720 (5,552 at 512-bit)
+  Reused fingerprints : 2,412 of 7,141  |  deployed private keys: 36
+  Factorable moduli   : 4 of 6,116  |  Unresolved (decay): 36.7%
   RESULT: OK  - matches Table 2 of the paper
-══════════════════════════════════════════════════════════════
 ```
 
 The faster `scripts/reproduce.sh` (analyzer only, ~6 min) regenerates `summary.json`
