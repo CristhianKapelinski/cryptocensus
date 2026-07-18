@@ -141,9 +141,18 @@ count agreeing with CBOM-Lens (the instrument calibration check).
 ## Experiments (reproducing the paper's main claim)
 
 Per the SBC guidance, we designate **one main claim** for reproduction. It is the
-paper's central result and the cheapest to verify; every other number in the paper is a
-field of the same `dataset/summary.json`, so a reviewer can spot-check any of them with
-no extra steps.
+paper's central result and the cheapest to verify. A single command reproduces it, along
+with every headline number and all three figures, directly from the released dataset:
+
+```bash
+scripts/run_claim.sh            # fetches+verifies dataset-v1 if absent, then reproduces
+```
+
+It re-runs the analyzer, regenerates the figures (no figure constant is hardcoded; each is
+computed from `dataset/records/`), and asserts every paper number against the reproduced
+value, printing an `OK`/`FAIL` block. On this host the full run (download excluded) takes
+about 10-12 minutes; the analyzer alone is ~5-6 minutes (dominated by the batch-GCD pass
+over 6,116 moduli).
 
 ### Claim #1 (central result)
 
@@ -169,10 +178,11 @@ scripts/reproduce.sh dataset
   `dataset/run_manifest.csv` pins every `reference -> digest`, so even re-pulling the
   images yields byte-identical inputs.
 
-The remaining paper numbers are fields of the same `summary.json` if a reviewer wishes to
-check them: decay (`unavailable_pct`), weak signatures
-(`certs_own_weak_signature`/`certs_own`), key reuse (`own_keys_reused_across_images`),
-batch-GCD (`factorable_moduli_shared_prime`).
+`scripts/check_claim.py` gates every headline number: the PQC-capable count (801, recomputed
+from library versions), weak signatures (43%), sub-2048-bit RSA (40,720), key reuse (2,412
+own fingerprints; 36 deployed private keys), batch-GCD (4 of 6,116 moduli), and decay (36.7%).
+The headline totals are fields of `dataset/summary.json`; the figure sub-breakdowns are
+recomputed from `dataset/records/` by `scripts/reproduce_figures.py`.
 
 ### Optional: re-run the full census end to end
 
