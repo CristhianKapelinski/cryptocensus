@@ -20,6 +20,7 @@ import os
 from collections import Counter, defaultdict
 
 from .batchgcd import batch_gcd
+from .classify import library_pqc_capable
 from .stats import wilson_pct
 
 
@@ -94,12 +95,17 @@ def _is_private_key(key: dict) -> bool:
     return key.get("kind") == "ssh" and not (path.endswith(".pub") or "authorized_keys" in path)
 
 
-def analyze(dataset_dir: str) -> dict:
-    images = _load(dataset_dir)
+def aggregate(images: list[dict]) -> tuple[dict, list[dict], list[dict], list]:
+    """Reduce per-image records to the census summary. Pure over `images` (a re-iterable
+    list of records, from disk or a materialized archive stream), so the analysis is
+    testable without I/O.
+
+    PQC capability is recomputed here from each library's name and version rather than
+    read from the record, so a corrected classifier applies to the released dataset
+    without re-collecting it.
+    """
     ok = [im for im in images if im.get("ok")]
 
-    # Reachability: only references that resolve to nothing ("gone") are decay; disk
-    # artifacts, too-large extractions, arch/auth failures are alive-but-unscanned.
     reach = Counter(_reach_class(im.get("error")) for im in images if not im.get("ok"))
     reach["scanned"] = len(ok)
     genuine_decay = reach.get("gone", 0)
@@ -108,7 +114,6 @@ def analyze(dataset_dir: str) -> dict:
 
     all_certs, own_certs = [], []
     own_keys, all_keys = [], []
-    libs = []
     weak_cfg_tokens: Counter[str] = Counter()
     pqc_capable_images = set()
     divergence = []  # (reference, {tool: certificate_count})
@@ -131,40 +136,33 @@ def analyze(dataset_dir: str) -> dict:
             if not k["in_trust_store"]:
                 own_keys.append(k)
         for lib in im.get("libraries", []):
-            libs.append(lib)
-            if lib["pqc_capable"]:
+            if library_pqc_capable(lib.get("name", ""), lib.get("version", "")):
                 pqc_capable_images.add(ref)
         for wc in im.get("weak_configs", []):
             weak_cfg_tokens[wc["token"]] += 1
 
-    # --- public-key asset posture (the headline axis) ----------------------
-    pk_assets = [c for c in all_certs] + [k for k in all_keys]
+    pk_assets = all_certs + all_keys
     qv = sum(1 for a in pk_assets if a["pq_status"] == "quantum-vulnerable")
     pqc = sum(1 for a in pk_assets if a["pq_status"] == "post-quantum")
 
-    # --- key reuse on OWN keys only ----------------------------------------
+    # Reuse and batch-GCD run on OWN material only (see module docstring).
     own_fpr_to_images = defaultdict(set)
-    for im in ok:
-        for k in im.get("keys", []):
-            if not k["in_trust_store"] and k.get("public_key_sha256"):
-                own_fpr_to_images[k["public_key_sha256"]].add(im["reference"])
-        for c in im.get("certs", []):
-            if not c["in_trust_store"] and c.get("public_key_sha256"):
-                own_fpr_to_images[c["public_key_sha256"]].add(im["reference"])
-    reused = {fpr: imgs for fpr, imgs in own_fpr_to_images.items() if len(imgs) > 1}
-
-    # Reuse restricted to deployed private keys: the security-relevant subset, where a
-    # single shipped key recurring across images compromises every image that carries it.
     deployed_fpr_to_images = defaultdict(set)
     for im in ok:
         for k in im.get("keys", []):
             if k["in_trust_store"] or not k.get("public_key_sha256"):
                 continue
+            own_fpr_to_images[k["public_key_sha256"]].add(im["reference"])
             if _is_private_key(k) and _is_deployed_key(k.get("path", "")):
                 deployed_fpr_to_images[k["public_key_sha256"]].add(im["reference"])
-    reused_deployed = {fpr: imgs for fpr, imgs in deployed_fpr_to_images.items() if len(imgs) > 1}
+        for c in im.get("certs", []):
+            if not c["in_trust_store"] and c.get("public_key_sha256"):
+                own_fpr_to_images[c["public_key_sha256"]].add(im["reference"])
+    reused = {fpr for fpr, imgs in own_fpr_to_images.items() if len(imgs) > 1}
+    # Security-relevant subset: deployed private keys recurring across images, where a
+    # single shipped key compromises every image that carries it.
+    reused_deployed = {fpr for fpr, imgs in deployed_fpr_to_images.items() if len(imgs) > 1}
 
-    # --- batch-GCD on OWN RSA moduli ---------------------------------------
     own_moduli = []
     for a in own_certs + own_keys:
         if a.get("rsa_modulus_hex"):
@@ -205,7 +203,12 @@ def analyze(dataset_dir: str) -> dict:
         "weak_config_tokens": dict(weak_cfg_tokens.most_common()),
         "tool_divergence_images": len(divergence),
     }
+    return summary, all_certs, all_keys, divergence
 
+
+def analyze(dataset_dir: str) -> dict:
+    images = _load(dataset_dir)
+    summary, all_certs, all_keys, divergence = aggregate(images)
     _write_artifacts(dataset_dir, all_certs, all_keys, summary, divergence)
     _write_run_manifest(dataset_dir, images)
     return summary
