@@ -96,9 +96,9 @@ def _is_private_key(key: dict) -> bool:
 
 
 def aggregate(images: list[dict]) -> tuple[dict, list[dict], list[dict], list]:
-    """Reduce per-image records to the census summary. Pure over `images` (a re-iterable
-    list of records, from disk or a materialized archive stream), so the analysis is
-    testable without I/O.
+    """Reduce per-image records to the census summary. Deterministic and I/O-free (so it is
+    testable without disk), over a re-iterable list of records from disk or an archive
+    stream; each asset dict is annotated in place with its image `reference`.
 
     PQC capability is recomputed here from each library's name and version rather than
     read from the record, so a corrected classifier applies to the released dataset
@@ -141,7 +141,7 @@ def aggregate(images: list[dict]) -> tuple[dict, list[dict], list[dict], list]:
             if library_pqc_capable(lib.get("name", ""), lib.get("version", "")):
                 pqc_capable_images.add(ref)
         for wc in im.get("weak_configs", []):
-            weak_cfg_tokens[wc["token"]] += 1
+            weak_cfg_tokens[wc["token"].upper()] += 1
 
     pk_assets = all_certs + all_keys
     qv = sum(1 for a in pk_assets if a["pq_status"] == "quantum-vulnerable")

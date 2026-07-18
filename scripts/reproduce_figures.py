@@ -22,18 +22,18 @@ from typing import Iterable, Iterator
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src"))
 from cryptocensus.batchgcd import batch_gcd
 from cryptocensus.analyze import _is_deployed_key, _is_private_key
+from cryptocensus.extractors.certs_keys import _CONFIG_NAMES as CFG_FILES, _CRYPTO_CONFIG_HINTS as CFG_HINTS
 
 FAMILIES = ("RSA", "EC", "DSA", "Ed25519")
-RSA_SIZES = ("512", "1024", "2048", "3072", "4096")
-WEAK_RSA = {"512", "1024"}
+RSA_SIZES = ("512", "1024", "<2048", "2048", "3072", "4096")
+WEAK_RSA = {"512", "1024", "<2048"}
 SIG_NAMES = {"sha256": "SHA-256", "sha1": "SHA-1", "sha384": "SHA-384",
              "md5": "MD5", "sha512": "SHA-512"}
 WEAK_SIG = {"SHA-1", "MD5"}
 
-# Weak tokens are counted only in TLS/SSH cryptographic config files, so that /dev/null
-# (NULL) and shell `export` (EXPORT) in unrelated files do not inflate the counts.
-CFG_FILES = {"openssl.cnf", "ssh_config", "sshd_config"}
-CFG_HINTS = ("ssl", "tls", "nginx", "apache", "httpd")
+# Weak tokens are counted only in the TLS/SSH cryptographic config files the extractor
+# recorded them from (CFG_FILES / CFG_HINTS are imported from the extractor so the two
+# never drift), so /dev/null (NULL) or a shell `export` (EXPORT) cannot inflate the counts.
 TOKEN_NAMES = {"MD5": "MD5", "3DES": "3DES", "DES": "DES", "RC4": "RC4", "NULL": "NULL",
                "EXPORT": "EXPORT", "SSLV2": "SSLv2", "SSLV3": "SSLv3",
                "TLSV1.0": "TLSv1.0", "TLSV1.1": "TLSv1.1"}
@@ -188,7 +188,11 @@ def _family_bucket(kt: str | None) -> str:
 
 def _rsa_bucket(size: int | None) -> str:
     s = str(size)
-    return s if s in RSA_SIZES else "other"
+    if s in RSA_SIZES:
+        return s
+    if isinstance(size, int) and size < 2048:
+        return "<2048"
+    return "other"
 
 
 def _count_rsa(asset: dict, rsa_size: Counter) -> int:

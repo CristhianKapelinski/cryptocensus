@@ -36,7 +36,7 @@ if [ ! -d "$DATASET/records" ]; then
     echo "Could not fetch SHA256SUMS from ${DATASET_URL%/*}/SHA256SUMS; refusing to use an unverified download."
     exit 1
   fi
-  ( cd "$TMP" && grep cryptocensus-dataset.tar.gz SHA256SUMS | sha256sum -c - ) || { echo "checksum FAILED"; exit 1; }
+  ( cd "$TMP" && grep -E 'cryptocensus-dataset\.tar\.gz$' SHA256SUMS | sha256sum -c - ) || { echo "checksum FAILED"; exit 1; }
   tar -xzf "$TMP/cryptocensus-dataset.tar.gz" -C "$DATASET" --strip-components=0
 fi
 
