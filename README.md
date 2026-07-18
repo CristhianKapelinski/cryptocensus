@@ -77,34 +77,32 @@ queue you start.
 
 ## Installation
 
+Everything runs through one Docker image — this is the only required step:
+
 ```bash
-# 1. Clone the repository
 git clone https://github.com/CristhianKapelinski/cryptocensus && cd cryptocensus
+docker build -t cryptocensus:latest .        # single pinned image; all tools are inside it
+```
 
-# 2. Install uv (if not already installed) — used for the unit tests and figure rendering
+Optional, and only if you prefer to run the Python unit tests on the host instead of in
+Docker: install uv and sync the dev dependencies.
+
+```bash
 curl -LsSf https://astral.sh/uv/install.sh | sh
-
-# 3. Build the single pinned image
-docker build -t cryptocensus:latest .
-
-# 4. (host, for the unit tests) install Python dependencies
 uv sync --extra dev
 ```
 
 ## Minimal test (≈5 minutes)
 
-Two independent checks; either confirms the artifact is functional.
-
 ```bash
-uv run pytest                # unit tests: classifier, batch-GCD, extractor (no network)
-bash scripts/minimal_test.sh # end-to-end: build → seed → work → collect → analyze
+bash scripts/minimal_test.sh   # end-to-end (Docker): build → seed → work → collect → analyze
 ```
 
 [`minimal_test.sh`](scripts/minimal_test.sh) censuses the five images in
 [`sample-images.txt`](config/sample-images.txt) and prints the report. Expected on this
 tiny frame: hundreds of public-key assets, **100% quantum-vulnerable and 0% post-quantum**,
 SHA-1 signatures present, and the built-in extractor's certificate count agreeing with
-CBOM-Lens.
+CBOM-Lens. (The Python unit tests are an optional host alternative: `uv run pytest`.)
 
 ## Experiments (reproducing the paper's main claim)
 

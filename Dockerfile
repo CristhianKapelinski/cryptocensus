@@ -54,9 +54,12 @@ WORKDIR /app
 COPY pyproject.toml uv.lock README.md ./
 COPY src ./src
 RUN uv sync --frozen --no-dev
+# Reproduction scripts run inside this image too, so a reviewer needs only Docker.
+COPY scripts ./scripts
 
 ENV PATH="/app/.venv/bin:$PATH" \
     CC_WORK_DIR=/tmp/cryptocensus \
+    MPLCONFIGDIR=/tmp/matplotlib \
     PYTHONUNBUFFERED=1
 ENTRYPOINT ["cryptocensus"]
 CMD ["--help"]
