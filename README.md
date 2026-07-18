@@ -15,9 +15,6 @@ every quantitative claim in the paper from the released dataset.
 
 > **Paper:** *CryptoCensus: Cryptographic Posture and Post-Quantum Readiness of Docker Hub*, SBSeg 2026 (WTICG).
 
-This README is the single self-contained guide a reviewer needs; it follows the SBC
-artifact-evaluation checklist. The files under `docs/` are complementary.
-
 ## README structure
 
 | Section | Description |
