@@ -26,7 +26,8 @@ cleanup() {
 trap cleanup EXIT
 
 # First N references of the uniform frame, in its deterministic hash-keyed order.
-grep -vE '^\s*(#|$)' "$FRAME" | head -n "$N" > "$FRAME_N"
+# (awk, not `grep | head`, so head closing the pipe cannot SIGPIPE-kill grep under pipefail.)
+awk -v n="$N" 'NF && $1 !~ /^#/ { print; if (++c >= n) exit }' "$FRAME" > "$FRAME_N"
 echo "==> Reduced census over $N repositories drawn from $FRAME"
 
 docker image inspect "$IMAGE" >/dev/null 2>&1 || { echo "==> Building image"; docker build -t "$IMAGE" .; }
