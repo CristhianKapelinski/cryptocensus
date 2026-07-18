@@ -18,14 +18,23 @@ every quantitative claim in the paper from the released dataset.
 This README is the single self-contained guide a reviewer needs; it follows the SBC
 artifact-evaluation checklist. The files under `docs/` are complementary.
 
-## Repository layout
+## README structure
 
-- [`src/cryptocensus/`](src/cryptocensus/) — sampler, queue, extractors, analyzer, CLI
-- [`scripts/`](scripts/) — [`minimal_test.sh`](scripts/minimal_test.sh), [`reduced_census.sh`](scripts/reduced_census.sh), [`reproduce.sh`](scripts/reproduce.sh), [`run_claim.sh`](scripts/run_claim.sh), [`reproduce_from_scratch.sh`](scripts/reproduce_from_scratch.sh)
-- [`config/`](config/) — [`sample-images.txt`](config/sample-images.txt) (smoke), [`sample-20000.txt`](config/sample-20000.txt) (full frame)
-- [`Dockerfile`](Dockerfile) · [`docker-compose.yml`](docker-compose.yml) · [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) · [`tests/`](tests/) · [`LICENSE`](LICENSE)
+| Section | Description |
+|---|---|
+| Seals considered | Quality seals targeted by this artifact |
+| Basic information | Hardware, OS, and software environment |
+| Dependencies | Required packages and external tools |
+| Security concerns | Risks and mitigations for evaluators |
+| Installation | Step-by-step local setup |
+| Minimal test | Quick functional verification (~5 min) |
+| Experiments | Reproduction of the paper's main claim |
+| License | Licensing information |
 
-## Badges claimed
+## Seals considered
+
+The seals considered are **Available (SeloD)**, **Functional (SeloF)**, **Sustainable
+(SeloS)**, and **Reproducible (SeloR)**.
 
 - **Available (SeloD):** all source, the pinned [`Dockerfile`](Dockerfile), the sampling frames, and the docs are in this public repo under an open license.
 - **Functional (SeloF):** unit tests plus [`scripts/minimal_test.sh`](scripts/minimal_test.sh) build and run the full pipeline end to end.
