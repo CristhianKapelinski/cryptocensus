@@ -18,6 +18,13 @@ References:
 
 from __future__ import annotations
 
+import re
+
+# OpenSSL library packages whose version tracks OpenSSL itself (Debian and Alpine
+# naming). Matched exactly so that OpenSSL-linking packages like libcurl4-openssl-dev
+# are not mistaken for OpenSSL.
+_OPENSSL_PKG = re.compile(r"^(openssl|libssl\d*|libcrypto\d*)(-dev|-libs)?$")
+
 # Public-key families broken by a cryptographically relevant quantum computer.
 QUANTUM_VULNERABLE_FAMILIES = {
     "RSA", "DSA", "DH", "ELGAMAL",
@@ -111,12 +118,17 @@ def library_pqc_capable(name: str, version: str) -> bool:
     Conservative thresholds:
       - openssl/libssl/libcrypto >= 3.5 ship native ML-KEM/ML-DSA.
       - any package whose name references oqs/liboqs is PQC-capable by construction.
+
+    The name is matched exactly against the OpenSSL library packages, not as a
+    substring: a substring match wrongly flags packages that merely link OpenSSL,
+    such as ``libcurl4-openssl-dev`` (whose 7.x/8.x version trivially exceeds 3.5).
     """
     n = (name or "").lower()
     v = (version or "").strip()
     if "oqs" in n:
         return True
-    if any(k in n for k in ("openssl", "libssl", "libcrypto")):
+    # Actual OpenSSL library packages, whose version tracks OpenSSL's own.
+    if _OPENSSL_PKG.match(n):
         # Compare the leading "major.minor" numerically against 3.5.
         try:
             parts = v.replace("~", ".").replace("-", ".").split(".")
