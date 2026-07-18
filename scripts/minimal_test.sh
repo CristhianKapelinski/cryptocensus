@@ -22,7 +22,8 @@ docker build -t "${IMAGE}" .
 
 echo "==> Starting Redis"
 docker network create "${NET}" >/dev/null 2>&1 || true
-docker run -d --name "${REDIS}" --network "${NET}" redis:7-alpine \
+docker run -d --name "${REDIS}" --network "${NET}" \
+  redis:7-alpine@sha256:6ab0b6e7381779332f97b8ca76193e45b0756f38d4c0dcda72dbb3c32061ab99 \
   redis-server --save "" --appendonly no >/dev/null
 echo "==> Waiting for Redis"
 for _ in $(seq 1 30); do

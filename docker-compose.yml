@@ -4,10 +4,11 @@ name: cryptocensus
 
 services:
   redis:
-    image: redis:7-alpine
+    image: redis:7-alpine@sha256:6ab0b6e7381779332f97b8ca76193e45b0756f38d4c0dcda72dbb3c32061ab99
     command: ["redis-server", "--save", "", "--appendonly", "no"]
+    # Bound to loopback: the queue is reachable only from this host, never the LAN.
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 2s
@@ -17,6 +18,8 @@ services:
   worker:
     build: .
     command: ["work"]
+    # Stateless and non-root: pulls images with crane (daemonless) and pushes results to Redis.
+    user: "${CC_UID:-1000}:${CC_GID:-1000}"
     environment:
       CC_REDIS_URL: redis://redis:6379/0
     depends_on:
@@ -24,7 +27,6 @@ services:
         condition: service_healthy
     deploy:
       replicas: 2
-    # Stateless: pulls images with crane (daemonless) and pushes results to Redis.
 
   # One-shot host roles are run on demand, e.g.:
   #   docker compose run --rm tools seed    --file /frame/sample-images.txt

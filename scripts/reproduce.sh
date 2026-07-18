@@ -22,20 +22,21 @@ DATASET_URL="${CC_DATASET_URL:-https://github.com/CristhianKapelinski/cryptocens
 if [ ! -d "$DATASET/records" ]; then
   echo "==> Released dataset not found; downloading and verifying (~1 min)"
   mkdir -p "$DATASET"
-  if ! curl -fsSL "$DATASET_URL" -o /tmp/cc-dataset.tar.gz; then
+  TMP="$(mktemp -d)"
+  trap 'rm -rf "$TMP"' EXIT
+  if ! curl -fsSL "$DATASET_URL" -o "$TMP/cryptocensus-dataset.tar.gz"; then
     echo "Could not fetch the dataset from $DATASET_URL."
     echo "If the download fails (offline mirror, rate limit), fetch the release"
     echo "asset cryptocensus-dataset.tar.gz manually and pass its directory:"
     echo "    bash scripts/reproduce.sh /path/to/extracted/dataset"
     exit 1
   fi
-  if ! curl -fsSL "${DATASET_URL%/*}/SHA256SUMS" -o /tmp/cc-sha; then
+  if ! curl -fsSL "${DATASET_URL%/*}/SHA256SUMS" -o "$TMP/SHA256SUMS"; then
     echo "Could not fetch SHA256SUMS from ${DATASET_URL%/*}/SHA256SUMS; refusing to use an unverified download."
     exit 1
   fi
-  cp /tmp/cc-dataset.tar.gz /tmp/cryptocensus-dataset.tar.gz
-  ( cd /tmp && grep cryptocensus-dataset.tar.gz cc-sha | sha256sum -c - ) || { echo "checksum FAILED"; exit 1; }
-  tar -xzf /tmp/cc-dataset.tar.gz -C "$DATASET" --strip-components=0
+  ( cd "$TMP" && grep cryptocensus-dataset.tar.gz SHA256SUMS | sha256sum -c - ) || { echo "checksum FAILED"; exit 1; }
+  tar -xzf "$TMP/cryptocensus-dataset.tar.gz" -C "$DATASET" --strip-components=0
 fi
 
 docker image inspect "$IMAGE" >/dev/null 2>&1 || { echo "==> Building image (~3 min)"; docker build -t "$IMAGE" .; }

@@ -20,6 +20,8 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 FRAME="${1:-config/sample-20000.txt}"
+# SHA256 of the published uniform-random frame; verified when the default frame is used.
+FRAME_SHA256=602a39dd5b4e3b2f8d4813c71b10e5d33cc2468cd36b731c8a4af133e8aa76e8
 WORKERS="${2:-2}"
 IMAGE="${CC_IMAGE:-cryptocensus:latest}"
 DATA="$(pwd)/dataset-fresh"
@@ -30,7 +32,11 @@ DOCKER_CFG="${DOCKER_CONFIG:-}"
 
 [ -f "$FRAME" ] || { echo "sampling frame not found: $FRAME"; exit 1; }
 echo "==> Frame: $FRAME ($(wc -l < "$FRAME") references), workers: $WORKERS"
-echo "==> Frame checksum: $(sha256sum "$FRAME" | cut -d' ' -f1)"
+if [ "$FRAME" = "config/sample-20000.txt" ]; then
+  echo "${FRAME_SHA256}  ${FRAME}" | sha256sum -c - || { echo "frame checksum FAILED"; exit 1; }
+else
+  echo "==> Frame checksum: $(sha256sum "$FRAME" | cut -d' ' -f1)"
+fi
 
 docker image inspect "$IMAGE" >/dev/null 2>&1 || { echo "==> Building image"; docker build -t "$IMAGE" .; }
 
@@ -39,7 +45,8 @@ trap cleanup EXIT
 cleanup
 
 docker network create "$NET" >/dev/null 2>&1 || true
-docker run -d --name "$REDIS" --network "$NET" redis:7-alpine \
+docker run -d --name "$REDIS" --network "$NET" \
+  redis:7-alpine@sha256:6ab0b6e7381779332f97b8ca76193e45b0756f38d4c0dcda72dbb3c32061ab99 \
   redis-server --save "" --appendonly no >/dev/null
 echo "==> Waiting for Redis"
 for _ in $(seq 1 30); do
