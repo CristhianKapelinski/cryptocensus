@@ -24,3 +24,4 @@ assets.csv
 
 # Vendored third-party binaries (fetched at build time, pinned in Dockerfile)
 /vendor/
+.claude/

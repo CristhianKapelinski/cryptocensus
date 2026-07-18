@@ -56,6 +56,44 @@ def _reach_class(error: str | None) -> str:
     return "other"
 
 
+# Filesystem locations of genuinely deployed private keys. A PEM private-key block
+# also appears inside library binaries, test fixtures, package caches, and documentation;
+# those are example keys, not deployed secrets, so they are excluded and reuse is measured
+# over operational material only (SSH host keys, system TLS keys, application key files).
+_KEY_EXCLUDE_SUBSTR = (
+    "test", "example", "sample", "fixture", "/testdata/", "node_modules",
+    "/vendor/", "/.npm/", "/.cache/", "/.git/", "/doc/", "/docs/",
+)
+_KEY_EXCLUDE_SUFFIX = (
+    ".md", ".txt", ".rst", ".html", ".htm", ".db", ".sqlite", ".sql", ".json",
+    ".yaml", ".yml", ".go", ".js", ".py", ".c", ".h", ".rb", ".so", ".dll", ".dylib",
+)
+_KEY_LIBRARY_SUBSTR = ("site-packages", "/lib/", "/usr/share/", "/usr/lib",
+                       "dist-packages", "/go/", "/perl", "/ruby", "/gem")
+_KEY_DEPLOYED_DIRS = ("/opt/", "/srv/", "/var/www", "/app", "/home", "/root", "/usr/local/")
+
+
+def _is_deployed_key(path: str) -> bool:
+    p = (path or "").lower()
+    if any(t in p for t in _KEY_EXCLUDE_SUBSTR):
+        return False
+    if p.endswith(_KEY_EXCLUDE_SUFFIX) or ".so." in p or "/bin/" in p or "/sbin/" in p:
+        return False
+    if "ssh_host_" in p or p.startswith(("/etc/ssl", "/etc/pki", "/etc/tls")):
+        return True
+    if any(t in p for t in _KEY_LIBRARY_SUBSTR):
+        return False
+    return p.startswith(_KEY_DEPLOYED_DIRS)
+
+
+def _is_private_key(key: dict) -> bool:
+    """A private key or an SSH host private key (not a .pub / authorized_keys public key)."""
+    path = (key.get("path") or "").lower()
+    if key.get("kind") == "private":
+        return True
+    return key.get("kind") == "ssh" and not (path.endswith(".pub") or "authorized_keys" in path)
+
+
 def analyze(dataset_dir: str) -> dict:
     images = _load(dataset_dir)
     ok = [im for im in images if im.get("ok")]
@@ -115,6 +153,17 @@ def analyze(dataset_dir: str) -> dict:
                 own_fpr_to_images[c["public_key_sha256"]].add(im["reference"])
     reused = {fpr: imgs for fpr, imgs in own_fpr_to_images.items() if len(imgs) > 1}
 
+    # Reuse restricted to deployed private keys: the security-relevant subset, where a
+    # single shipped key recurring across images compromises every image that carries it.
+    deployed_fpr_to_images = defaultdict(set)
+    for im in ok:
+        for k in im.get("keys", []):
+            if k["in_trust_store"] or not k.get("public_key_sha256"):
+                continue
+            if _is_private_key(k) and _is_deployed_key(k.get("path", "")):
+                deployed_fpr_to_images[k["public_key_sha256"]].add(im["reference"])
+    reused_deployed = {fpr: imgs for fpr, imgs in deployed_fpr_to_images.items() if len(imgs) > 1}
+
     # --- batch-GCD on OWN RSA moduli ---------------------------------------
     own_moduli = []
     for a in own_certs + own_keys:
@@ -149,6 +198,7 @@ def analyze(dataset_dir: str) -> dict:
         "keys_own": len(own_keys),
         "own_key_fingerprints": len(own_fpr_to_images),
         "own_keys_reused_across_images": len(reused),
+        "deployed_private_keys_reused": len(reused_deployed),
         "own_rsa_moduli_unique": len(unique_moduli),
         "factorable_moduli_shared_prime": len(factorable),
         "images_with_pqc_capable_library": len(pqc_capable_images),
@@ -212,6 +262,7 @@ def format_report(summary: dict) -> str:
         f"  weak signature (own/total)    : {s['certs_own_weak_signature']}/{s['certs_weak_signature']}",
         f"own keys                        : {s['keys_own']}",
         f"  reused across images          : {s['own_keys_reused_across_images']}",
+        f"  deployed private keys reused  : {s['deployed_private_keys_reused']}",
         f"own unique RSA moduli           : {s['own_rsa_moduli_unique']}",
         f"  factorable (shared prime)     : {s['factorable_moduli_shared_prime']}",
         f"images w/ PQC-capable library   : {s['images_with_pqc_capable_library']}",
