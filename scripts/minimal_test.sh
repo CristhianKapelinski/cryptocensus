@@ -9,7 +9,7 @@ IMAGE="cryptocensus:latest"
 NET="cryptocensus-net"
 REDIS="cryptocensus-redis"
 REDIS_URL="redis://${REDIS}:6379/0"
-DATASET="$(pwd)/dataset"
+DATASET="$(pwd)/dataset-min"   # own dir; never collides with the released dataset/
 
 cleanup() {
   docker rm -f "${REDIS}" >/dev/null 2>&1 || true

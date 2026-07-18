@@ -14,7 +14,7 @@ venv/
 .ruff_cache/
 
 # Census outputs (data products live outside the repo)
-/dataset/
+dataset*/
 /out/
 /results/
 *.jsonl

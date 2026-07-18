@@ -286,9 +286,9 @@ def _posture(d, plt, out_dir, red, steel, kfmt):
     sizes = [k for k, _ in d["rsa_size"]]
     svals = [v for _, v in d["rsa_size"]]
     b.bar(sizes, svals, color=[red if s in WEAK_RSA else steel for s in sizes])
-    b.set_ylim(0, max(svals) * 1.22)
+    b.set_ylim(0, (max(svals) or 1) * 1.22)
     for i, v in enumerate(svals):
-        b.text(i, v + max(svals) * 0.03, kfmt(v), ha="center", fontsize=8.5,
+        b.text(i, v + (max(svals) or 1) * 0.03, kfmt(v), ha="center", fontsize=8.5,
                color=red if sizes[i] in WEAK_RSA else "black")
     b.yaxis.set_major_formatter(plt.FuncFormatter(lambda v, _: f"{v / 1000:.0f}k" if v else "0"))
     b.set_ylabel("RSA keys")
@@ -300,9 +300,9 @@ def _posture(d, plt, out_dir, red, steel, kfmt):
     hl = [k for k, _ in order][::-1]
     hv = [v for _, v in order][::-1]
     c.barh(hl, hv, color=[red if h in WEAK_SIG else steel for h in hl])
-    c.set_xlim(0, max(hv) * 1.32)
+    c.set_xlim(0, (max(hv) if hv else 1) * 1.32)
     for i, v in enumerate(hv):
-        c.text(v + max(hv) * 0.03, i, kfmt(v), va="center", fontsize=8.5,
+        c.text(v + (max(hv) if hv else 1) * 0.03, i, kfmt(v), va="center", fontsize=8.5,
                color=red if hl[i] in WEAK_SIG else "black")
     c.xaxis.set_major_formatter(plt.FuncFormatter(lambda v, _: f"{v / 1000:.0f}k" if v else "0"))
     c.set_xlabel("own certificates")

@@ -99,28 +99,33 @@ bash scripts/minimal_test.sh   # end-to-end (Docker): build → seed → work �
 ```
 
 [`minimal_test.sh`](scripts/minimal_test.sh) censuses the five images in
-[`sample-images.txt`](config/sample-images.txt) and prints the report. Expected on this
-tiny frame: hundreds of public-key assets, **100% quantum-vulnerable and 0% post-quantum**,
-SHA-1 signatures present, and the built-in extractor's certificate count agreeing with
-CBOM-Lens. (The Python unit tests are an optional host alternative: `uv run pytest`.)
+[`sample-images.txt`](config/sample-images.txt) and prints the report. What to look for:
+all **5 images scanned**, over a thousand public-key assets, and — the invariant —
+**100% quantum-vulnerable, 0% post-quantum**, with a few images shipping a PQC-capable
+library and CBOM-Lens running alongside the built-in extractor on every image
+(`images for tool-divergence: 5`). Exact counts vary as the sample's tags re-resolve.
+(Unit tests are an optional host check: `uv run pytest`.)
 
-## Experiments (reproducing the paper's main claim)
+## Experiments
 
-Per the SBC guidance, we designate **one main claim** for reproduction. It is the
-paper's central result and the cheapest to verify. A single command reproduces it, along
-with every headline number and all three figures, directly from the released dataset:
+We designate **one main claim** for reproduction — the paper's central result. One command
+reproduces it from the released dataset and asserts every paper number.
+
+### Claim #1 — the deployed cryptography has not begun its post-quantum migration
+
+Paper: Abstract, Table 2, Section *Post-quantum readiness*.
 
 ```bash
-scripts/run_claim.sh            # fetches+verifies dataset-v1 if absent, then reproduces
+scripts/run_claim.sh
 ```
 
-It re-runs the analyzer, regenerates the figures (no figure constant is hardcoded; each is
-computed from `dataset/records/`), and asserts every paper number against the reproduced
-value. On this host the full run (download excluded) takes about 10-12 minutes; the
-analyzer alone is ~5-6 minutes (dominated by the batch-GCD pass over 6,116 moduli).
+Downloads and verifies `dataset-v1` (if absent), re-runs the analyzer, regenerates the three
+figures, and checks every headline number against the paper. **1 core · < 2 GB RAM · ~10-12
+min** (download excluded; the batch-GCD pass over 6,116 moduli dominates); no GPU. Numbers
+reproduce **exactly** — the pipeline uses no randomness and `dataset/run_manifest.csv` pins
+every image by digest.
 
-It prints one `OK` row per metric and this summary; **every row must read `OK` and it must
-print `RESULT: OK`**:
+**Expected result** — one `OK` per metric, ending in `RESULT: OK`:
 
 ```
   Claim: deployed cryptographic posture is not migrating
@@ -131,42 +136,11 @@ print `RESULT: OK`**:
   Reused fingerprints : 2,412 of 7,141
   RSA moduli / factorable (batch-GCD): 6,116 / 4
   Unresolved (no latest tag): 34.7%
+  ─────────────────────────────────────────────
+  images_ok  11,962 | public_key_assets  4,211,380 | pqc_capable_images  801
+  certs_own  518,668 | weak_sig_pct  43 | rsa_sub2048  40,720 | ... every row OK
   RESULT: OK  - matches Table 2 of the paper
 ```
-
-### Claim #1 (central result)
-
-Over the uniform-random sample of Docker Hub images (11,962 images, 4,211,380 public-key
-assets), **100% of public-key assets are quantum-vulnerable and 0% are post-quantum**,
-while about one image in five already ships a PQC-*capable* library it never uses (paper
-Abstract; Section "Post-quantum readiness"; Figure "Own cryptographic material").
-
-**Reproduce (from the released dataset, single host, no special hardware):**
-
-```bash
-# fetch the released dataset/ (digest-pinned per-image records), then:
-scripts/reproduce.sh dataset
-```
-
-- **Resources / time:** 1 core, < 2 GB RAM, **≈ 6 minutes** (the batch-GCD pass over 6,116
-  moduli dominates). No GPU. Network is used only once, to download the dataset; the
-  analysis itself runs fully offline on the local files.
-- **Expected output:** `dataset/summary.json` shows `quantum_vulnerable_pct: 100.0`,
-  `post_quantum_pct: 0.0`, and `images_with_pqc_capable_library` > 0. The same run writes
-  `dataset/assets.csv` (one row per asset), from which the paper's figure and confidence
-  intervals are recomputed.
-- **Determinism:** extraction is deterministic given an image digest and the pipeline
-  uses **no randomness**, so the released dataset's numbers reproduce **exactly** (not
-  within a tolerance). `dataset/run_manifest.csv` pins every `reference -> digest`, so even
-  re-pulling the images yields byte-identical inputs. (The only clock-dependent field is a
-  certificate's `expired` flag, evaluated at scan time; it does not affect any gated number.)
-
-`scripts/check_claim.py` gates every headline number: the PQC-capable count (801, recomputed
-from library versions), weak signatures (43%), sub-2048-bit RSA (40,720), key reuse (2,412
-reused of 7,141 own fingerprints; 36 deployed private keys), batch-GCD (4 of 6,116 moduli),
-and unresolved references (34.7%, no `latest` tag).
-The headline totals are fields of `dataset/summary.json`; the figure sub-breakdowns are
-recomputed from `dataset/records/` by `scripts/reproduce_figures.py`.
 
 ### Optional: re-run the census live
 
