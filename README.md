@@ -18,40 +18,6 @@ every quantitative claim in the paper from the released dataset.
 This README is the single self-contained guide a reviewer needs; it follows the SBC
 artifact-evaluation checklist. The files under `docs/` are complementary.
 
-## Quick start for reviewers (copy-paste, runs everything)
-
-Two commands confirm the artifact end to end; each is self-contained, builds what it
-needs, and prints its result. Total **≈ 17 minutes on a laptop** (no GPU).
-
-```bash
-git clone https://github.com/CristhianKapelinski/cryptocensus && cd cryptocensus
-bash scripts/minimal_test.sh    # SeloF: builds image + runs the full pipeline on 5 images         (~5 min)
-bash scripts/run_claim.sh       # SeloR: downloads+verifies the dataset, reproduces every number  (~12 min)
-```
-
-`run_claim.sh` asserts every paper number against the reproduced value; it prints one `OK`
-row per metric and the summary below. **Every row must read `OK` and it must print `RESULT: OK`**:
-
-```
-  Claim: deployed cryptographic posture is not migrating
-  PQC-capable images  : 801 / 11,962  (6.7%)
-  Post-quantum assets : 0 / 4,211,380  (100% quantum-vulnerable)
-  Weak-signature certs: 43.0%
-  RSA keys < 2048-bit : 40,720  (5,552 at 512-bit)
-  Reused fingerprints : 2,412 of 7,141
-  RSA moduli / factorable (batch-GCD): 6,116 / 4
-  Unresolved (no latest tag): 34.7%
-  RESULT: OK  - matches Table 2 of the paper
-```
-
-The faster `scripts/reproduce.sh` (analyzer only, ~6 min) regenerates `summary.json`
-without the figures or the assert block, if you only want the raw numbers.
-
-Optional unit tests, no Docker (~1 min): `uv sync --extra dev && uv run pytest`.
-
-Mode B (rebuild the dataset from scratch by re-pulling every image) is described under
-*Experiments* below; it is not needed to verify the claim.
-
 ## Repository layout
 
 - [`src/cryptocensus/`](src/cryptocensus/) — sampler, queue, extractors, analyzer, CLI
@@ -145,9 +111,23 @@ scripts/run_claim.sh            # fetches+verifies dataset-v1 if absent, then re
 
 It re-runs the analyzer, regenerates the figures (no figure constant is hardcoded; each is
 computed from `dataset/records/`), and asserts every paper number against the reproduced
-value, printing an `OK`/`FAIL` block. On this host the full run (download excluded) takes
-about 10-12 minutes; the analyzer alone is ~5-6 minutes (dominated by the batch-GCD pass
-over 6,116 moduli).
+value. On this host the full run (download excluded) takes about 10-12 minutes; the
+analyzer alone is ~5-6 minutes (dominated by the batch-GCD pass over 6,116 moduli).
+
+It prints one `OK` row per metric and this summary; **every row must read `OK` and it must
+print `RESULT: OK`**:
+
+```
+  Claim: deployed cryptographic posture is not migrating
+  PQC-capable images  : 801 / 11,962  (6.7%)
+  Post-quantum assets : 0 / 4,211,380  (100% quantum-vulnerable)
+  Weak-signature certs: 43.0%
+  RSA keys < 2048-bit : 40,720  (5,552 at 512-bit)
+  Reused fingerprints : 2,412 of 7,141
+  RSA moduli / factorable (batch-GCD): 6,116 / 4
+  Unresolved (no latest tag): 34.7%
+  RESULT: OK  - matches Table 2 of the paper
+```
 
 ### Claim #1 (central result)
 
@@ -195,9 +175,15 @@ bash scripts/reduced_census.sh 25     # N repositories
 ```
 
 It starts Redis and one worker, seeds the draw, pulls and flattens each image with
-`crane`, extracts, and analyzes into `dataset-reduced/summary.json`. To rebuild the full
-20,000-reference dataset, [`scripts/reproduce_from_scratch.sh`](scripts/reproduce_from_scratch.sh)
-re-pulls every image in [`sample-20000.txt`](config/sample-20000.txt) by digest (hours).
+`crane`, extracts, and analyzes into `dataset-reduced/summary.json`.
+
+To rebuild the full 20,000-reference dataset, [`scripts/reproduce_from_scratch.sh`](scripts/reproduce_from_scratch.sh)
+re-pulls every image in [`sample-20000.txt`](config/sample-20000.txt) by digest. On a
+single host this is bound by Docker Hub's pull limit (~200 images per 6 h per IP), so the
+full frame takes roughly `20,000 / 200 * 6 h ≈ 600 h` (about **three to four weeks**); the
+original census parallelized the queue across several hosts (distinct IPs) to finish
+sooner. This is why the released dataset (Mode A above) is the canonical reproduction and
+`reduced_census.sh` exists to exercise the live pipeline in minutes.
 
 All behaviour is `CC_*`-configured; the full config reference, the sampling-frame
 construction, and the measurement's limitations are in
