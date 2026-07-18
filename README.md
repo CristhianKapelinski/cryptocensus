@@ -40,7 +40,7 @@ row per metric and the summary below. **Every row must read `OK` and it must pri
   RSA keys < 2048-bit : 40,720  (5,552 at 512-bit)
   Reused fingerprints : 2,412 of 7,141
   RSA moduli / factorable (batch-GCD): 6,116 / 4
-  Unresolved (decay)  : 36.7%
+  Unresolved (no latest tag): 34.7%
   RESULT: OK  - matches Table 2 of the paper
 ```
 
@@ -179,7 +179,7 @@ scripts/reproduce.sh dataset
 `scripts/check_claim.py` gates every headline number: the PQC-capable count (801, recomputed
 from library versions), weak signatures (43%), sub-2048-bit RSA (40,720), key reuse (2,412
 reused of 7,141 own fingerprints; 36 deployed private keys), batch-GCD (4 of 6,116 moduli),
-and decay (36.7%).
+and unresolved references (34.7%, no `latest` tag).
 The headline totals are fields of `dataset/summary.json`; the figure sub-breakdowns are
 recomputed from `dataset/records/` by `scripts/reproduce_figures.py`.
 

@@ -41,7 +41,7 @@ _TRUST_MARKERS = (
     "/usr/local/share/ca-certificates",
     "/etc/ca-certificates",
     "/etc/pki/",
-    "/ssl/cert.pem",
+    "/etc/ssl/cert.pem",
     "ca-certificates.crt",
     "/certifi/",
 )
@@ -185,26 +185,41 @@ def extract(root: str, max_file_bytes: int = 2_000_000):
                 for token in {m.decode("latin1") for m in _WEAK_CIPHER_RE.findall(data)}:
                     weak_configs.append(WeakConfigRecord(path=rel, token=token))
 
-            # SSH keys. A private host key is recorded as "ssh"; a .pub file or an
-            # authorized_keys entry is public material and is recorded as "public".
+            # SSH keys. A private host key is recorded as "ssh"; .pub files and
+            # authorized_keys entries are public material, recorded as "public" (an
+            # authorized_keys file may list several keys, so every line is parsed).
             if filename.startswith("ssh_host_") or lower.endswith(".pub") or "authorized_keys" in lower:
-                try:
-                    if b"PRIVATE" in data[:64]:
+                if b"PRIVATE" in data[:64]:
+                    try:
                         key = serialization.load_ssh_private_key(data, password=None)
                         keys.append(_make_key_record(key.public_key(), rel, trust, "ssh"))
-                    else:
-                        key = serialization.load_ssh_public_key(data.split(b"\n")[0])
-                        keys.append(_make_key_record(key, rel, trust, "public"))
-                    keep(data)
-                    continue
-                except Exception:
-                    pass
+                        keep(data)
+                        files_scanned += 1
+                        continue
+                    except Exception:
+                        pass
+                else:
+                    parsed = False
+                    for line in data.split(b"\n"):
+                        line = line.strip()
+                        if not line or line.startswith(b"#"):
+                            continue
+                        try:
+                            keys.append(_make_key_record(serialization.load_ssh_public_key(line), rel, trust, "public"))
+                            parsed = True
+                        except Exception:
+                            continue
+                    if parsed:
+                        keep(data)
+                        files_scanned += 1
+                        continue
 
             # DER-encoded certificates (no PEM armor).
             if lower.endswith((".der", ".crt", ".cer")) and b"-----BEGIN" not in data:
                 try:
                     certs.append(_make_cert_record(x509.load_der_x509_certificate(data), rel, trust))
                     keep(data)
+                    files_scanned += 1
                 except Exception:
                     pass
                 continue

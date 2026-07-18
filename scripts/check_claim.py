@@ -31,7 +31,7 @@ EXPECTED = {
     "reused": 2412,
     "rsa_moduli": 6116,
     "factorable": 4,
-    "decay_pct": 36.7,
+    "decay_pct": 34.7,
     "own_priv_ssh_keys": 37077,
     "reused_deployed": 36,
 }
@@ -82,7 +82,7 @@ def check(dataset_dir: str) -> bool:
     print(f"  RSA keys < 2048-bit : {got['rsa_sub2048']:,}  ({got['rsa_512']:,} at 512-bit)")
     print(f"  Reused fingerprints : {got['reused']:,} of {got['fingerprints']:,}")
     print(f"  RSA moduli / factorable (batch-GCD): {got['rsa_moduli']:,} / {got['factorable']}")
-    print(f"  Unresolved (decay)  : {got['decay_pct']:.1f}%")
+    print(f"  Unresolved (no latest tag): {got['decay_pct']:.1f}%")
     print(bar)
     print(f"  {'metric':<24}{'reproduced':>14}{'paper':>14}   status")
     for k in EXPECTED:

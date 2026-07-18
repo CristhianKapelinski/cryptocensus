@@ -129,9 +129,10 @@ def library_pqc_capable(name: str, version: str) -> bool:
         return True
     # Actual OpenSSL library packages, whose version tracks OpenSSL's own.
     if _OPENSSL_PKG.match(n):
-        # Compare the leading "major.minor" numerically against 3.5.
+        # Compare the leading "major.minor" numerically against 3.5, dropping any
+        # Debian epoch prefix ("1:3.5.0" -> "3.5.0").
         try:
-            parts = v.replace("~", ".").replace("-", ".").split(".")
+            parts = v.split(":")[-1].replace("~", ".").replace("-", ".").split(".")
             major = int(parts[0])
             minor = int(parts[1]) if len(parts) > 1 and parts[1].isdigit() else 0
             return (major, minor) >= (3, 5)

@@ -109,7 +109,9 @@ def aggregate(images: list[dict]) -> tuple[dict, list[dict], list[dict], list]:
     reach = Counter(_reach_class(im.get("error")) for im in images if not im.get("ok"))
     reach["scanned"] = len(ok)
     genuine_decay = reach.get("gone", 0)
-    decay_den = len(ok) + genuine_decay
+    # Non-resolution rate over every reference with a determinate outcome: scanned, plus
+    # those that resolved but fell out of scope, plus those that did not resolve.
+    decay_den = len(images)
     decay_lo, decay_hi = wilson_pct(genuine_decay, decay_den)
 
     all_certs, own_certs = [], []
