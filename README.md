@@ -47,17 +47,8 @@ without the figures or the assert block, if you only want the raw numbers.
 
 Optional unit tests, no Docker (~1 min): `uv sync --extra dev && uv run pytest`.
 
-### Two reproduction modes
-
-- **Mode A, from the collected data (fast, ~6 min):** `scripts/reproduce.sh` downloads the
-  released digest-pinned dataset, verifies its `SHA256SUMS`, and re-runs the deterministic
-  analyzer to regenerate `summary.json` (the numbers in the paper). `scripts/run_claim.sh`
-  additionally regenerates the figures and asserts every number (~12 min).
-- **Mode B, from scratch (hours):** `scripts/reproduce_from_scratch.sh` re-pulls every image
-  in the published sampling frame by content digest, re-extracts its cryptographic material,
-  and re-runs the analysis, regenerating the dataset rather than trusting the released one.
-  Network-bound; authenticated Docker Hub pulls recommended. Use `config/sample-images.txt`
-  for a fast smoke run, `config/sample-20000.txt` for the full frame.
+Mode B (rebuild the dataset from scratch by re-pulling every image) is described under
+*Experiments* below; it is not needed to verify the claim.
 
 ## README structure
 
