@@ -128,10 +128,12 @@ def aggregate(images: list[dict]) -> tuple[dict, list[dict], list[dict], list]:
             divergence.append((ref, per_tool))
 
         for c in im.get("certs", []):
+            c["reference"] = ref
             all_certs.append(c)
             if not c["in_trust_store"]:
                 own_certs.append(c)
         for k in im.get("keys", []):
+            k["reference"] = ref
             all_keys.append(k)
             if not k["in_trust_store"]:
                 own_keys.append(k)
@@ -231,8 +233,9 @@ def _write_artifacts(dataset_dir, all_certs, all_keys, summary, divergence):
     with open(os.path.join(dataset_dir, "summary.json"), "w") as handle:
         json.dump(summary, handle, indent=2)
     with open(os.path.join(dataset_dir, "assets.csv"), "w", newline="") as handle:
-        cols = ["asset", "path", "in_trust_store", "key_type", "key_size",
-                "pq_status", "weak_key", "signature_hash", "weak_signature"]
+        cols = ["asset", "reference", "path", "in_trust_store", "key_type", "key_size",
+                "pq_status", "weak_key", "signature_hash", "weak_signature",
+                "public_key_sha256", "self_signed", "expired"]
         writer = csv.DictWriter(handle, fieldnames=cols, extrasaction="ignore")
         writer.writeheader()
         for c in all_certs:
