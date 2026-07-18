@@ -15,16 +15,16 @@ cd "$(dirname "$0")/.."
 
 DATASET="${1:-$(pwd)/dataset}"
 IMAGE="${CC_IMAGE:-cryptocensus:latest}"
-# Pinned to a fixed release tag for reproducibility. CC_DATASET_URL overrides it (e.g.
-# the de-anonymized release for camera-ready, or a local mirror).
-DATASET_URL="${CC_DATASET_URL:-https://github.com/AnonAuthorAnonAuthor/cryptocensus/releases/download/dataset-v1/cryptocensus-dataset.tar.gz}"
+# Pinned to a fixed release tag for reproducibility. CC_DATASET_URL overrides it
+# (e.g. a local mirror).
+DATASET_URL="${CC_DATASET_URL:-https://github.com/CristhianKapelinski/cryptocensus/releases/download/dataset-v1/cryptocensus-dataset.tar.gz}"
 
 if [ ! -d "$DATASET/records" ]; then
   echo "==> Released dataset not found; downloading and verifying (~1 min)"
   mkdir -p "$DATASET"
   if ! curl -fsSL "$DATASET_URL" -o /tmp/cc-dataset.tar.gz; then
     echo "Could not fetch the dataset from $DATASET_URL."
-    echo "If the repository is still private (double-blind review), download the release"
+    echo "If the download fails (offline mirror, rate limit), fetch the release"
     echo "asset cryptocensus-dataset.tar.gz manually and pass its directory:"
     echo "    bash scripts/reproduce.sh /path/to/extracted/dataset"
     exit 1

@@ -24,7 +24,7 @@ Two commands confirm the artifact end to end; each is self-contained, builds wha
 needs, and prints its result. Total **≈ 8 minutes on a laptop** (no GPU).
 
 ```bash
-git clone https://github.com/AnonAuthorAnonAuthor/cryptocensus && cd cryptocensus
+git clone https://github.com/CristhianKapelinski/cryptocensus && cd cryptocensus
 bash scripts/minimal_test.sh    # SeloF: builds image + runs the full pipeline on 5 images   (~5 min)
 bash scripts/reproduce.sh       # SeloR: downloads the released dataset + reproduces the results (~2 min)
 ```
@@ -111,7 +111,7 @@ queue you start.
 ## Installation
 
 ```bash
-git clone https://github.com/AnonAuthorAnonAuthor/cryptocensus && cd cryptocensus
+git clone https://github.com/CristhianKapelinski/cryptocensus && cd cryptocensus
 docker build -t cryptocensus:latest .        # builds the single pinned image
 ```
 
