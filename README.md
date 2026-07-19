@@ -45,7 +45,7 @@ The seals considered are **Available (SeloD)**, **Functional (SeloF)**, **Sustai
 | | |
 |---|---|
 | **Hardware (paper census)** | commodity x86-64 hosts (8-core Intel i7-9700 · 32 GB RAM · Debian/Ubuntu) |
-| **Minimum (minimal test / Claim #1)** | x86-64 · 2 cores · 4 GB RAM · ~2 GB disk |
+| **Minimum** | x86-64. Minimal test: 2 cores · 4 GB RAM. Claim #1 (`run_claim`): ~6.7 GB peak RAM measured (loads all records for batch-GCD), so **≥ 8 GB RAM** recommended; ~2 GB disk for the dataset archive |
 | **OS** | Linux x86-64 (tested on Ubuntu 24.04 / Debian 12) |
 | **Software** | Docker ≥ 24 (tested on 27.5; Compose v2 optional). Everything else — Python 3.12, `uv`, crane, the analyzer — runs inside the image; nothing is installed on the host. |
 | **Host tools** | `curl`, `tar`, `sha256sum` (coreutils) for the one-time dataset download; `gh` optional (with a `curl` fallback) |
@@ -113,10 +113,11 @@ scripts/run_claim.sh
 ```
 
 Downloads and verifies `dataset-v1` (if absent), re-runs the analyzer, regenerates the three
-figures, and checks every headline number against the paper. **≈ 13 minutes** measured on an
-AMD Ryzen 5 8600G (6 cores/12 threads, 30 GB RAM), download excluded; single-threaded (the
-batch-GCD pass over 6,116 moduli dominates), no GPU. Numbers reproduce **exactly** — the
-pipeline uses no randomness and `dataset/run_manifest.csv` pins every image by digest.
+figures, and checks every headline number against the paper. **≈ 13 minutes, ~6.7 GB peak
+RAM** measured on an AMD Ryzen 5 8600G (6 cores/12 threads), download excluded; single-threaded
+(the analyzer loads all records for the batch-GCD pass over 6,116 moduli, which dominates both
+time and memory), no GPU. Numbers reproduce **exactly** — the pipeline uses no randomness and
+`dataset/run_manifest.csv` pins every image by digest.
 
 **Expected result** — one `OK` per metric, ending in `RESULT: OK`:
 
