@@ -86,7 +86,7 @@ git clone https://github.com/CristhianKapelinski/cryptocensus && cd cryptocensus
 docker build -t cryptocensus:latest .        # single pinned image; all tools are inside it
 ```
 
-## Minimal test (≈5 minutes)
+## Minimal test (~10 minutes on the first run)
 
 ```bash
 bash scripts/minimal_test.sh   # end-to-end (Docker): build → seed → work → collect → analyze
@@ -113,10 +113,10 @@ scripts/run_claim.sh
 ```
 
 Downloads and verifies `dataset-v1` (if absent), re-runs the analyzer, regenerates the three
-figures, and checks every headline number against the paper. **1 core · < 2 GB RAM · ~10-12
-min** (download excluded; the batch-GCD pass over 6,116 moduli dominates); no GPU. Numbers
-reproduce **exactly** — the pipeline uses no randomness and `dataset/run_manifest.csv` pins
-every image by digest.
+figures, and checks every headline number against the paper. **≈ 13 minutes** measured on an
+AMD Ryzen 5 8600G (6 cores/12 threads, 30 GB RAM), download excluded; single-threaded (the
+batch-GCD pass over 6,116 moduli dominates), no GPU. Numbers reproduce **exactly** — the
+pipeline uses no randomness and `dataset/run_manifest.csv` pins every image by digest.
 
 **Expected result** — one `OK` per metric, ending in `RESULT: OK`:
 

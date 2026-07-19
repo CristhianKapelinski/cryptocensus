@@ -55,6 +55,17 @@ _CRYPTO_CONFIG_HINTS = ("ssl", "tls", "nginx", "apache", "httpd", "strongswan", 
 _NOW = datetime.datetime.now(datetime.timezone.utc)
 
 
+def is_crypto_config(path: str) -> bool:
+    """True for the TLS/SSH cryptographic config files whose weak-token names are counted.
+    Restricting to these keeps ``/dev/null`` (NULL), a shell ``export`` (EXPORT) and other
+    non-cryptographic matches out of the counts. Shared by the extractor, the analyzer, and
+    the figure reproducer so the three never disagree on what a crypto config is."""
+    name = os.path.basename(path).lower()
+    return name in _CONFIG_NAMES or (
+        name.endswith((".conf", ".cnf")) and any(hint in name for hint in _CRYPTO_CONFIG_HINTS)
+    )
+
+
 def _in_trust_store(path: str) -> bool:
     return any(marker in path for marker in _TRUST_MARKERS)
 
@@ -174,14 +185,9 @@ def extract(root: str, max_file_bytes: int = 2_000_000):
             lower = filename.lower()
 
             # Weak protocol/cipher tokens are recorded only in TLS/SSH cryptographic
-            # configuration files. Scanning every *.conf/*.cnf conflates non-cryptographic
-            # uses (e.g. /dev/null matches NULL, a shell `export` matches EXPORT), so we
-            # restrict to the canonical crypto configs and the config files of TLS-serving
-            # daemons.
-            if filename in _CONFIG_NAMES or (
-                lower.endswith((".conf", ".cnf"))
-                and any(t in lower for t in _CRYPTO_CONFIG_HINTS)
-            ):
+            # configuration files (see is_crypto_config): scanning every *.conf/*.cnf
+            # conflates non-cryptographic uses (e.g. /dev/null matches NULL).
+            if is_crypto_config(path):
                 for token in {m.decode("latin1") for m in _WEAK_CIPHER_RE.findall(data)}:
                     weak_configs.append(WeakConfigRecord(path=rel, token=token))
 

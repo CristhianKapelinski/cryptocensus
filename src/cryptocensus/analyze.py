@@ -22,6 +22,7 @@ from collections import Counter, defaultdict
 
 from .batchgcd import batch_gcd
 from .classify import library_pqc_capable
+from .extractors.certs_keys import is_crypto_config
 from .stats import wilson_pct
 
 
@@ -165,7 +166,12 @@ def aggregate(images: list[dict]) -> tuple[dict, list[dict], list[dict], list]:
             if library_pqc_capable(lib.get("name", ""), lib.get("version", "")):
                 pqc_capable_images.add(ref)
         for wc in im.get("weak_configs", []):
-            weak_cfg_tokens[wc["token"].upper()] += 1
+            # Count a weak token only if it was recorded in a real crypto config file. The
+            # released records were collected before the extractor applied this filter, so
+            # re-applying it here keeps /dev/null (NULL), a shell `export` (EXPORT) and the
+            # like out of the counts, matching the figures and the paper.
+            if is_crypto_config(wc.get("path", "")):
+                weak_cfg_tokens[wc["token"].upper()] += 1
 
     pk_assets = all_certs + all_keys
     qv = sum(1 for a in pk_assets if a["pq_status"] == "quantum-vulnerable")
@@ -285,7 +291,7 @@ def format_report(summary: dict) -> str:
         "=" * 64,
         f"images analyzed (ok/total)      : {s['images_ok']}/{s['images_total']}",
         f"  unavailable (raw)             : {s['images_unavailable']} ({s['unavailable_pct']}%)",
-        f"  genuine decay                 : {s['decay_pct']}% (95% CI {s['decay_ci95'][0]}-{s['decay_ci95'][1]}, n={s['decay_denominator']})",
+        f"  unresolved (no latest tag)    : {s['decay_pct']}% (95% CI {s['decay_ci95'][0]}-{s['decay_ci95'][1]}, n={s['decay_denominator']})",
         f"  too-large stratum             : {s['too_large']}",
         f"  reachability                  : {s['reachability']}",
         f"public-key assets catalogued    : {s['public_key_assets']}",
