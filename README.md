@@ -138,6 +138,9 @@ time and memory), no GPU. Numbers reproduce **exactly** — the pipeline uses no
   RESULT: OK  - matches Table 2 of the paper
 ```
 
+The regenerated paper figures land in `dataset/` next to `summary.json` — open them with
+e.g. `xdg-open dataset/fig_posture.pdf` (also `fig_repro.pdf` and `fig_keys.pdf`).
+
 ### Optional: re-run the census live
 
 Not required for Claim #1. [`scripts/reduced_census.sh`](scripts/reduced_census.sh) runs
