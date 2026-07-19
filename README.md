@@ -45,15 +45,15 @@ The seals considered are **Available (SeloD)**, **Functional (SeloF)**, **Sustai
 | **Hardware (paper census)** | commodity x86-64 hosts (8-core Intel i7-9700 · 32 GB RAM · Debian/Ubuntu) |
 | **Minimum (minimal test / Claim #1)** | x86-64 · 2 cores · 4 GB RAM · ~2 GB disk |
 | **OS** | Linux x86-64 (tested on Ubuntu 24.04 / Debian 12) |
-| **Software** | Docker ≥ 24 (tested on 27.5; Compose v2 optional) · Python ≥ 3.11 on the host · [`uv`](https://astral.sh/uv) (the container ships Python 3.12) |
-| **Host tools** | `curl`, `tar`, `sha256sum` (coreutils); `gh` optional (with a `curl` fallback) |
+| **Software** | Docker ≥ 24 (tested on 27.5; Compose v2 optional). Everything else — Python 3.12, `uv`, crane, the analyzer — runs inside the image; nothing is installed on the host. |
+| **Host tools** | `curl`, `tar`, `sha256sum` (coreutils) for the one-time dataset download; `gh` optional (with a `curl` fallback) |
 | **Network** | Docker Hub access for image pulls; anonymous pulls are rate-limited, a Docker Hub login raises the limit for the full census (not needed for the minimal test) |
 
 ## Dependencies
 
-All third-party tools that run inside the pipeline are pinned in the `Dockerfile`. On the
-host, the reproduction scripts need only Docker, `curl`/`tar`/`sha256sum`, and `python3`
-(plus `uv` for the unit tests) — all listed under *Basic information* above.
+All third-party tools are pinned in the `Dockerfile` and run inside the image. On the host
+the reproduction scripts need only Docker plus `curl`/`tar`/`sha256sum` for the one-time
+download — nothing else is installed on the host.
 
 | Tool | Version | Role |
 |------|---------|------|
@@ -63,7 +63,7 @@ host, the reproduction scripts need only Docker, `curl`/`tar`/`sha256sum`, and `
 | syft | 1.44.0 | crypto-library inventory (optional) |
 | Python `cryptography` | ≥41 | certificate/key parsing (built-in instrument) |
 | Redis | 7 | distributed task queue |
-| uv (Astral) | 0.11.17 | dependency management / unit tests |
+| uv (Astral) | 0.11.17 | dependency install during the image build |
 
 ## Security concerns
 
@@ -84,14 +84,6 @@ git clone https://github.com/CristhianKapelinski/cryptocensus && cd cryptocensus
 docker build -t cryptocensus:latest .        # single pinned image; all tools are inside it
 ```
 
-Optional, and only if you prefer to run the Python unit tests on the host instead of in
-Docker: install uv and sync the dev dependencies.
-
-```bash
-curl -LsSf https://astral.sh/uv/install.sh | sh
-uv sync --extra dev
-```
-
 ## Minimal test (≈5 minutes)
 
 ```bash
@@ -104,7 +96,6 @@ all **5 images scanned**, over a thousand public-key assets, and — the invaria
 **100% quantum-vulnerable, 0% post-quantum**, with a few images shipping a PQC-capable
 library and CBOM-Lens running alongside the built-in extractor on every image
 (`images for tool-divergence: 5`). Exact counts vary as the sample's tags re-resolve.
-(Unit tests are an optional host check: `uv run pytest`.)
 
 ## Experiments
 
