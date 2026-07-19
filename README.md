@@ -15,6 +15,8 @@ every quantitative claim in the paper from the released dataset.
 
 > **Paper:** *CryptoCensus: Cryptographic Posture and Post-Quantum Readiness of Docker Hub*, SBSeg 2026 (WTICG).
 
+![CryptoCensus pipeline: a uniform-random draw from the sampling frame, resolution of each reference to a content digest, a pull and flattening of each image, a calibrated extraction of its cryptographic material, and classification into population estimates.](docs/pipeline.png)
+
 ## README structure
 
 | Section | Description |
