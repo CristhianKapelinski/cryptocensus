@@ -47,9 +47,15 @@ echo "==> Analyzing (streaming records; summary.json written to $DATASET)"
 run "$IMAGE" analyze --dataset "$SRC"
 
 echo "==> Regenerating figures"
-run --entrypoint python3 "$IMAGE" scripts/reproduce_figures.py --dataset "$SRC" --out /data \
-  && echo "    figures written to $DATASET/ (fig_posture.pdf, fig_repro.pdf, fig_keys.pdf) — open e.g. xdg-open $DATASET/fig_posture.pdf" \
-  || echo "WARNING: figure rendering failed; numbers are still checked below" >&2
+if run --entrypoint python3 "$IMAGE" scripts/reproduce_figures.py --dataset "$SRC" --out /data; then
+  echo "    figures written to $DATASET/ (fig_posture.pdf, fig_repro.pdf, fig_keys.pdf)"
+  if command -v xdg-open >/dev/null 2>&1 && [ -n "${DISPLAY:-}" ]; then
+    for f in fig_posture fig_repro fig_keys; do xdg-open "$DATASET/$f.pdf" >/dev/null 2>&1 & done
+    echo "    (opened them in your PDF viewer)"
+  fi
+else
+  echo "WARNING: figure rendering failed; numbers are still checked below" >&2
+fi
 
 echo "==> Checking reproduced numbers against the paper"
 run --entrypoint python3 "$IMAGE" scripts/check_claim.py --dataset /data --records "$SRC"
