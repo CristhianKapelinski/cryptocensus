@@ -21,7 +21,7 @@ from typing import Iterable, Iterator
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src"))
 from cryptocensus.batchgcd import batch_gcd
-from cryptocensus.analyze import _is_deployed_key, _is_private_key
+from cryptocensus.analyze import _is_deployed_key, _is_private_key, iter_records, _output_dir
 from cryptocensus.extractors.certs_keys import _CONFIG_NAMES as CFG_FILES, _CRYPTO_CONFIG_HINTS as CFG_HINTS
 
 FAMILIES = ("RSA", "EC", "DSA", "Ed25519")
@@ -47,13 +47,8 @@ CCDF_X = (1, 2, 3, 4, 5, 10, 20, 50, 100, 200, 500, 1000, 2000)
 FACTORABLE_LIT = [("TLS hosts\n(% of hosts)", 0.50), ("Developer RSA\n(% of RSA keys)", 0.00056)]
 
 
-def iter_records_dir(dataset_dir: str) -> Iterator[dict]:
-    for path in glob.glob(os.path.join(dataset_dir, "records", "*.json")):
-        try:
-            with open(path) as handle:
-                yield json.load(handle)
-        except (OSError, json.JSONDecodeError):
-            continue
+# A dataset directory or a released .tar.gz archive (streamed, not extracted).
+iter_records_dir = iter_records
 
 
 def _is_crypto_cfg(path: str) -> bool:
@@ -403,19 +398,20 @@ def _keys(d, plt, out_dir, steel):
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--dataset", required=True, help="dataset directory containing records/")
-    ap.add_argument("--out", default=None, help="output directory for the PDFs (default: --dataset)")
+    ap.add_argument("--dataset", required=True, help="dataset directory (records/) or a released .tar.gz archive")
+    ap.add_argument("--out", default=None, help="output directory for the PDFs (default: alongside --dataset)")
     ap.add_argument("--no-figures", action="store_true", help="print numbers only, skip PDFs")
     args = ap.parse_args(argv)
 
-    if not os.path.isdir(os.path.join(args.dataset, "records")):
-        print(f"no records/ under {args.dataset}", file=sys.stderr)
+    src = args.dataset
+    if not (os.path.isdir(os.path.join(src, "records")) or os.path.isfile(src)):
+        print(f"no records/ directory or archive at {src}", file=sys.stderr)
         return 2
 
-    data = aggregate(iter_records_dir(args.dataset))
+    data = aggregate(iter_records(src))
     print_numbers(data)
     if not args.no_figures:
-        out = args.out or args.dataset
+        out = args.out or _output_dir(src)
         os.makedirs(out, exist_ok=True)
         render(data, out)
         print(f"wrote fig_posture.pdf, fig_repro.pdf, fig_keys.pdf to {out}")

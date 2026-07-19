@@ -43,10 +43,10 @@ def _ok(got, exp) -> bool:
     return got == exp
 
 
-def check(dataset_dir: str) -> bool:
+def check(dataset_dir: str, records: str | None = None) -> bool:
     with open(os.path.join(dataset_dir, "summary.json")) as handle:
         s = json.load(handle)
-    fig = aggregate(iter_records_dir(dataset_dir), with_batchgcd=False)
+    fig = aggregate(iter_records_dir(records or dataset_dir), with_batchgcd=False)
     weak_sig_pct = round(100.0 * fig["weak_sig"] / (fig["own_certs"] or 1), 1)
 
     got = {
@@ -98,9 +98,11 @@ def check(dataset_dir: str) -> bool:
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--dataset", required=True)
+    ap.add_argument("--dataset", required=True, help="directory holding summary.json")
+    ap.add_argument("--records", default=None,
+                    help="records source for the figure numbers: a directory or a .tar.gz (default: --dataset)")
     args = ap.parse_args(argv)
-    return 0 if check(args.dataset) else 1
+    return 0 if check(args.dataset, args.records) else 1
 
 
 if __name__ == "__main__":

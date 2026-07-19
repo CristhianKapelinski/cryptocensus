@@ -17,6 +17,7 @@ import csv
 import glob
 import json
 import os
+import tarfile
 from collections import Counter, defaultdict
 
 from .batchgcd import batch_gcd
@@ -24,12 +25,33 @@ from .classify import library_pqc_capable
 from .stats import wilson_pct
 
 
-def _load(dataset_dir: str) -> list[dict]:
-    records = []
-    for path in glob.glob(os.path.join(dataset_dir, "records", "*.json")):
-        with open(path) as handle:
-            records.append(json.load(handle))
-    return records
+def iter_records(source: str):
+    """Yield per-image record dicts from a dataset directory (its ``records/*.json``) or
+    directly from the released ``.tar.gz`` archive, streamed member by member so the ~20k
+    record files never have to be extracted to disk — fast, and safe on filesystems that
+    choke on many small files."""
+    if os.path.isdir(source):
+        for path in glob.glob(os.path.join(source, "records", "*.json")):
+            with open(path) as handle:
+                yield json.load(handle)
+        return
+    with tarfile.open(source, "r:gz") as tf:
+        for member in tf:
+            if not (member.isfile() and member.name.startswith("records/")
+                    and member.name.endswith(".json")):
+                continue
+            handle = tf.extractfile(member)
+            if handle is None:
+                continue
+            try:
+                yield json.load(handle)
+            except (ValueError, OSError):
+                continue
+
+
+def _output_dir(source: str) -> str:
+    """Where analyze writes its results: the dataset dir itself, or the archive's dir."""
+    return source if os.path.isdir(source) else (os.path.dirname(source) or ".")
 
 
 def _pct(part: int, whole: int) -> float:
@@ -210,11 +232,14 @@ def aggregate(images: list[dict]) -> tuple[dict, list[dict], list[dict], list]:
     return summary, all_certs, all_keys, divergence
 
 
-def analyze(dataset_dir: str) -> dict:
-    images = _load(dataset_dir)
+def analyze(source: str) -> dict:
+    """Aggregate a dataset directory or a released ``.tar.gz`` archive; write the results
+    next to it (into the directory, or the archive's parent directory)."""
+    images = list(iter_records(source))
+    out_dir = _output_dir(source)
     summary, all_certs, all_keys, divergence = aggregate(images)
-    _write_artifacts(dataset_dir, all_certs, all_keys, summary, divergence)
-    _write_run_manifest(dataset_dir, images)
+    _write_artifacts(out_dir, all_certs, all_keys, summary, divergence)
+    _write_run_manifest(out_dir, images)
     return summary
 
 
