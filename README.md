@@ -86,12 +86,14 @@ git clone https://github.com/CristhianKapelinski/cryptocensus && cd cryptocensus
 docker build -t cryptocensus:latest .        # single pinned image; all tools are inside it
 ```
 
-## Minimal test (~10 minutes on the first run)
+## Minimal test (≈ 1.5 minutes)
 
 ```bash
 bash scripts/minimal_test.sh   # end-to-end (Docker): build → seed → work → collect → analyze
 ```
 
+Measured **1m21s** on the test machine (AMD Ryzen 5 8600G) with the image already built from
+*Installation*; the first-ever run also builds the image (a few minutes).
 [`minimal_test.sh`](scripts/minimal_test.sh) censuses the five images in
 [`sample-images.txt`](config/sample-images.txt) and prints the report. What to look for:
 all **5 images scanned**, over a thousand public-key assets, and — the invariant —
