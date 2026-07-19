@@ -69,7 +69,7 @@ LOCATION_ORDER = ["test/example material", "libraries / other files", "language-
                   "application dirs", "SSH host keys", "system TLS dirs"]
 
 
-def aggregate(records: Iterable[dict], with_batchgcd: bool = True) -> dict:
+def aggregate(records: Iterable[dict], with_batchgcd: bool = False) -> dict:
     """Compute the data behind every figure. Pure over ``records``. Set
     ``with_batchgcd=False`` to skip the shared-prime scan when the factorable count is
     already known (e.g. from summary.json), which dominates the runtime."""
@@ -402,9 +402,20 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     data = aggregate(iter_records(src))
+    # Batch-GCD is expensive and skipped above; pull the factorable count from the
+    # summary.json that analyze already wrote, so the figure panel is correct.
+    out = args.out or _output_dir(src)
+    try:
+        with open(os.path.join(out, "summary.json")) as h:
+            _s = json.load(h)
+        _n = _s.get("factorable_moduli_shared_prime", 0)
+        _m = _s.get("own_rsa_moduli_unique", data["rsa_moduli"])
+        data["factorable"] = _n
+        data["factorable_pct"] = round(100.0 * _n / (_m or 1), 4)
+    except (FileNotFoundError, KeyError, json.JSONDecodeError):
+        pass
     print_numbers(data)
     if not args.no_figures:
-        out = args.out or _output_dir(src)
         os.makedirs(out, exist_ok=True)
         render(data, out)
         print(f"wrote fig_posture.pdf, fig_repro.pdf, fig_keys.pdf to {out}")
