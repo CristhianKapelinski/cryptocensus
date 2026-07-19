@@ -17,6 +17,7 @@ import csv
 import glob
 import json
 import os
+import sys
 import tarfile
 from collections import Counter, defaultdict
 
@@ -203,6 +204,8 @@ def aggregate(images: list[dict]) -> tuple[dict, list[dict], list[dict], list]:
             except ValueError:
                 pass
     unique_moduli = sorted(set(own_moduli))
+    if unique_moduli:
+        print(f"  running batch-GCD over {len(unique_moduli):,} moduli …", file=sys.stderr)
     factorable = batch_gcd(unique_moduli)
 
     summary = {

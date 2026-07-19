@@ -39,7 +39,7 @@ fi
 # Records source: the extracted dir if you already have one, else the archive (streamed).
 if [ -d "$DATASET/records" ]; then SRC=/data; else SRC="/data/$(basename "$TARBALL")"; fi
 
-docker image inspect "$IMAGE" >/dev/null 2>&1 || { echo "==> Building image (~3 min)"; docker build -t "$IMAGE" .; }
+if ! docker image inspect "$IMAGE" >/dev/null 2>&1; then echo "==> Building image (first time)"; docker build -t "$IMAGE" .; fi
 
 run() { docker run --rm --user "$(id -u):$(id -g)" -v "$DATASET":/data "$@"; }
 
