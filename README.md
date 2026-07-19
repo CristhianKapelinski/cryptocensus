@@ -95,11 +95,11 @@ bash scripts/minimal_test.sh   # end-to-end (Docker): build → seed → work �
 Measured **1m21s** on the test machine (AMD Ryzen 5 8600G) with the image already built from
 *Installation*; the first-ever run also builds the image (a few minutes).
 [`minimal_test.sh`](scripts/minimal_test.sh) censuses the five images in
-[`sample-images.txt`](config/sample-images.txt) and prints the report. What to look for:
-all **5 images scanned**, over a thousand public-key assets, and — the invariant —
-**100% quantum-vulnerable, 0% post-quantum**, with a few images shipping a PQC-capable
-library and CBOM-Lens running alongside the built-in extractor on every image
-(`images for tool-divergence: 5`). Exact counts vary as the sample's tags re-resolve.
+[`sample-images.txt`](config/sample-images.txt) (digest-pinned, so the result is
+deterministic) and prints the report. Expected: **5/5 images scanned**, **1,171 public-key
+assets**, **100% quantum-vulnerable, 0% post-quantum**, **3** of the 5 images shipping a
+PQC-capable library, and CBOM-Lens running alongside the built-in extractor on all five
+(`images for tool-divergence: 5`).
 
 ## Experiments
 
