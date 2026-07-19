@@ -18,7 +18,7 @@ ARG GITLEAKS_SHA256=551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f24
 ARG CBOM_LENS_SHA256=a53b184e7fb2759d483dd2535bdc38d11a0da691bebe470a2efc6d2225efbb14
 
 RUN apt-get update \
- && apt-get install -y --no-install-recommends curl ca-certificates \
+ && apt-get install -y --no-install-recommends curl ca-certificates fonts-liberation \
  && rm -rf /var/lib/apt/lists/*
 
 # crane: daemonless image pull + flatten.

@@ -280,7 +280,8 @@ def _posture(d, plt, out_dir, red, steel, kfmt):
     b.yaxis.set_major_formatter(plt.FuncFormatter(lambda v, _: f"{v / 1000:.0f}k" if v else "0"))
     b.set_ylabel("RSA keys")
     b.set_xlabel("key size (bits)")
-    b.tick_params(axis="x", rotation=38, labelsize=8.5)
+    b.set_xticks(range(len(sizes)))
+    b.set_xticklabels(sizes, rotation=40, ha="right", rotation_mode="anchor", fontsize=7.5)
     b.set_title("(b) RSA key size", loc="left", fontsize=10, fontweight="bold")
 
     order = sorted(d["sig"], key=lambda kv: kv[1], reverse=True)
