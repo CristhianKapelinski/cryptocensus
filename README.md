@@ -132,7 +132,7 @@ time and memory), no GPU. Numbers reproduce **exactly** — the pipeline uses no
   RSA keys < 2048-bit : 40,720  (5,552 at 512-bit)
   Reused fingerprints : 2,412 of 7,141
   RSA moduli / factorable (batch-GCD): 6,116 / 4
-  Unresolved (no latest tag): 34.8%
+  Unresolved (no latest tag): 34.7%
   ─────────────────────────────────────────────
   images_ok  11,962 | public_key_assets  4,211,380 | pqc_capable_images  801
   certs_non_trust_store  518,668 | weak_sig_pct  43 | rsa_sub2048  40,720 | ... every row OK
