@@ -6,7 +6,7 @@
 2. **Distributed** — scale horizontally by adding workers on more machines.
 3. **Daemonless & safe** — images are pulled and flattened, never executed; the
    tarball is extracted with path-traversal and special-file protection.
-4. **Honest measurement** — trust-store vs. own material are separated; PQC
+4. **Honest measurement** — trust-store and non-trust-store paths are separated; PQC
    *capability* and *usage* are distinguished; only independent tools are compared
    for divergence.
 

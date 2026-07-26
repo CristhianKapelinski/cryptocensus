@@ -4,7 +4,8 @@ CBOM-Lens is an independent, third-party cryptographic-asset scanner. We run it 
 the same flattened filesystem and record its component counts. Because it is
 independent of the built-in extractor, the comparison between CBOM-Lens and any other
 independent tool (e.g. cbomkit-theia) is a legitimate inter-tool divergence signal;
-the comparison between CBOM-Lens and the built-in extractor is a calibration check.
+the comparison between CBOM-Lens and the built-in extractor is an independent
+coverage comparison, not a ground-truth calibration.
 """
 
 from __future__ import annotations

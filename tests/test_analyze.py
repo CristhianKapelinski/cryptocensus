@@ -34,8 +34,8 @@ def test_own_vs_trust_store_split_and_posture():
     ])
     summary, *_ = aggregate([img])
     assert summary["certs_total"] == 2
-    assert summary["certs_own"] == 1
-    assert summary["certs_own_weak_signature"] == 1
+    assert summary["certs_non_trust_store"] == 1
+    assert summary["certs_non_trust_store_weak_signature"] == 1
     assert summary["quantum_vulnerable_pct"] == 100.0
     assert summary["post_quantum"] == 0
 
@@ -51,5 +51,5 @@ def test_reuse_and_factorable_on_own_material():
                             "public_key_sha256": shared, "rsa_modulus_hex": None}]),
     ]
     summary, *_ = aggregate(imgs)
-    assert summary["own_key_fingerprints"] == 1
-    assert summary["own_keys_reused_across_images"] == 1
+    assert summary["non_trust_store_key_fingerprints"] == 1
+    assert summary["non_trust_store_keys_reused_across_images"] == 1

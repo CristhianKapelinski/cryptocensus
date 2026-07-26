@@ -1,14 +1,15 @@
 """Aggregate the collected dataset into the census results.
 
 Methodological notes baked into the code:
-  * Trust store vs. own crypto: the CA bundle shipped by the base OS is reported
-    separately from cryptographic material the image author introduced ("own").
-  * Key reuse and batch-GCD run on OWN keys/moduli only, because the CA bundle is
+  * Trust-store vs. non-trust-store crypto: files under known CA-bundle paths are
+    reported separately from material elsewhere. This path classification does not
+    establish authorship or runtime use. Legacy output fields retain the name "own".
+  * Key reuse and batch-GCD run on non-trust-store keys/moduli only, because CA bundles are
     legitimately identical across images that share a base layer and would otherwise
     dominate (and falsify) any reuse signal.
   * Tool divergence is computed only between *independent third-party tools*
-    (e.g. cbom-lens). The built-in extractor is reported as the calibrated instrument,
-    not as a divergence party.
+    (e.g. cbom-lens). The built-in extractor is the primary instrument, not a
+    divergence party.
 """
 
 from __future__ import annotations
@@ -81,10 +82,10 @@ def _reach_class(error: str | None) -> str:
     return "other"
 
 
-# Filesystem locations of genuinely deployed private keys. A PEM private-key block
+# Filesystem locations associated with operational private-key use. A PEM private-key block
 # also appears inside library binaries, test fixtures, package caches, and documentation;
-# those are example keys, not deployed secrets, so they are excluded and reuse is measured
-# over operational material only (SSH host keys, system TLS keys, application key files).
+# those are usually example keys, so they are excluded and reuse is measured over
+# operational paths only (SSH host keys, system TLS keys, application key files).
 _KEY_EXCLUDE_SUBSTR = (
     "test", "example", "sample", "fixture", "/testdata/", "node_modules",
     "/vendor/", "/.npm/", "/.cache/", "/.git/", "/doc/", "/docs/",
@@ -98,7 +99,7 @@ _KEY_LIBRARY_SUBSTR = ("site-packages", "/lib/", "/usr/share/", "/usr/lib",
 _KEY_DEPLOYED_DIRS = ("/opt/", "/srv/", "/var/www", "/app", "/home", "/root", "/usr/local/")
 
 
-def _is_deployed_key(path: str) -> bool:
+def _is_operational_key(path: str) -> bool:
     p = (path or "").lower()
     if any(t in p for t in _KEY_EXCLUDE_SUBSTR):
         return False
@@ -138,8 +139,8 @@ def aggregate(images: list[dict]) -> tuple[dict, list[dict], list[dict], list]:
     decay_den = len(images)
     decay_lo, decay_hi = wilson_pct(genuine_decay, decay_den)
 
-    all_certs, own_certs = [], []
-    own_keys, all_keys = [], []
+    all_certs, non_trust_store_certs = [], []
+    non_trust_store_keys, all_keys = [], []
     weak_cfg_tokens: Counter[str] = Counter()
     pqc_capable_images = set()
     divergence = []  # (reference, {tool: certificate_count})
@@ -157,12 +158,12 @@ def aggregate(images: list[dict]) -> tuple[dict, list[dict], list[dict], list]:
             c["reference"] = ref
             all_certs.append(c)
             if not c["in_trust_store"]:
-                own_certs.append(c)
+                non_trust_store_certs.append(c)
         for k in im.get("keys", []):
             k["reference"] = ref
             all_keys.append(k)
             if not k["in_trust_store"]:
-                own_keys.append(k)
+                non_trust_store_keys.append(k)
         for lib in im.get("libraries", []):
             if library_pqc_capable(lib.get("name", ""), lib.get("version", "")):
                 pqc_capable_images.add(ref)
@@ -178,32 +179,34 @@ def aggregate(images: list[dict]) -> tuple[dict, list[dict], list[dict], list]:
     qv = sum(1 for a in pk_assets if a["pq_status"] == "quantum-vulnerable")
     pqc = sum(1 for a in pk_assets if a["pq_status"] == "post-quantum")
 
-    # Reuse and batch-GCD run on OWN material only (see module docstring).
-    own_fpr_to_images = defaultdict(set)
-    deployed_fpr_to_images = defaultdict(set)
+    # Reuse and batch-GCD run on non-trust-store material only (see module docstring).
+    non_trust_store_fpr_to_images = defaultdict(set)
+    operational_fpr_to_images = defaultdict(set)
     for im in ok:
         for k in im.get("keys", []):
             if k["in_trust_store"] or not k.get("public_key_sha256"):
                 continue
-            own_fpr_to_images[k["public_key_sha256"]].add(im["reference"])
-            if _is_private_key(k) and _is_deployed_key(k.get("path", "")):
-                deployed_fpr_to_images[k["public_key_sha256"]].add(im["reference"])
+            non_trust_store_fpr_to_images[k["public_key_sha256"]].add(im["reference"])
+            if _is_private_key(k) and _is_operational_key(k.get("path", "")):
+                operational_fpr_to_images[k["public_key_sha256"]].add(im["reference"])
         for c in im.get("certs", []):
             if not c["in_trust_store"] and c.get("public_key_sha256"):
-                own_fpr_to_images[c["public_key_sha256"]].add(im["reference"])
-    reused = {fpr for fpr, imgs in own_fpr_to_images.items() if len(imgs) > 1}
-    # Security-relevant subset: deployed private keys recurring across images, where a
+                non_trust_store_fpr_to_images[c["public_key_sha256"]].add(im["reference"])
+    reused = {fpr for fpr, imgs in non_trust_store_fpr_to_images.items() if len(imgs) > 1}
+    # Security-relevant subset: private keys in operational paths recurring across images, where a
     # single shipped key compromises every image that carries it.
-    reused_deployed = {fpr for fpr, imgs in deployed_fpr_to_images.items() if len(imgs) > 1}
+    reused_operational = {
+        fpr for fpr, imgs in operational_fpr_to_images.items() if len(imgs) > 1
+    }
 
-    own_moduli = []
-    for a in own_certs + own_keys:
+    non_trust_store_moduli = []
+    for a in non_trust_store_certs + non_trust_store_keys:
         if a.get("rsa_modulus_hex"):
             try:
-                own_moduli.append(int(a["rsa_modulus_hex"], 16))
+                non_trust_store_moduli.append(int(a["rsa_modulus_hex"], 16))
             except ValueError:
                 pass
-    unique_moduli = sorted(set(own_moduli))
+    unique_moduli = sorted(set(non_trust_store_moduli))
     if unique_moduli:
         print(f"  running batch-GCD over {len(unique_moduli):,} moduli …", file=sys.stderr)
     factorable = batch_gcd(unique_moduli)
@@ -225,14 +228,16 @@ def aggregate(images: list[dict]) -> tuple[dict, list[dict], list[dict], list]:
         "post_quantum": pqc,
         "post_quantum_pct": _pct(pqc, len(pk_assets)),
         "certs_total": len(all_certs),
-        "certs_own": len(own_certs),
+        "certs_non_trust_store": len(non_trust_store_certs),
         "certs_weak_signature": sum(1 for c in all_certs if c["weak_signature"]),
-        "certs_own_weak_signature": sum(1 for c in own_certs if c["weak_signature"]),
-        "keys_own": len(own_keys),
-        "own_key_fingerprints": len(own_fpr_to_images),
-        "own_keys_reused_across_images": len(reused),
-        "deployed_private_keys_reused": len(reused_deployed),
-        "own_rsa_moduli_unique": len(unique_moduli),
+        "certs_non_trust_store_weak_signature": sum(
+            1 for c in non_trust_store_certs if c["weak_signature"]
+        ),
+        "keys_non_trust_store": len(non_trust_store_keys),
+        "non_trust_store_key_fingerprints": len(non_trust_store_fpr_to_images),
+        "non_trust_store_keys_reused_across_images": len(reused),
+        "operational_private_keys_reused": len(reused_operational),
+        "non_trust_store_rsa_moduli_unique": len(unique_moduli),
         "factorable_moduli_shared_prime": len(factorable),
         "images_with_pqc_capable_library": len(pqc_capable_images),
         "weak_config_tokens": dict(weak_cfg_tokens.most_common()),
@@ -300,12 +305,13 @@ def format_report(summary: dict) -> str:
         f"public-key assets catalogued    : {s['public_key_assets']}",
         f"  quantum-vulnerable            : {s['quantum_vulnerable']} ({s['quantum_vulnerable_pct']}%)",
         f"  post-quantum                  : {s['post_quantum']} ({s['post_quantum_pct']}%)",
-        f"certificates (own/total)        : {s['certs_own']}/{s['certs_total']}",
-        f"  weak signature (own/total)    : {s['certs_own_weak_signature']}/{s['certs_weak_signature']}",
-        f"own keys                        : {s['keys_own']}",
-        f"  reused across images          : {s['own_keys_reused_across_images']}",
-        f"  deployed private keys reused  : {s['deployed_private_keys_reused']}",
-        f"own unique RSA moduli           : {s['own_rsa_moduli_unique']}",
+        f"certificates (non-trust-store/total): {s['certs_non_trust_store']}/{s['certs_total']}",
+        f"  weak signature (non-trust-store/total): "
+        f"{s['certs_non_trust_store_weak_signature']}/{s['certs_weak_signature']}",
+        f"non-trust-store keys            : {s['keys_non_trust_store']}",
+        f"  reused across images          : {s['non_trust_store_keys_reused_across_images']}",
+        f"  operational private keys reused: {s['operational_private_keys_reused']}",
+        f"non-trust-store unique RSA moduli: {s['non_trust_store_rsa_moduli_unique']}",
         f"  factorable (shared prime)     : {s['factorable_moduli_shared_prime']}",
         f"images w/ PQC-capable library   : {s['images_with_pqc_capable_library']}",
         f"weak TLS/SSH config tokens      : {s['weak_config_tokens']}",

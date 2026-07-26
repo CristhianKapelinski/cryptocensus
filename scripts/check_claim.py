@@ -22,18 +22,18 @@ EXPECTED = {
     "quantum_vulnerable_pct": 100.0,
     "post_quantum": 0,
     "pqc_capable_images": 801,
-    "certs_own": 518668,
+    "certs_non_trust_store": 518668,
     "weak_sig_pct": 43.0,
     "rsa_sub2048": 40720,
     "rsa_512": 5552,
-    "own_keys": 178455,
+    "non_trust_store_keys": 178455,
     "fingerprints": 7141,
     "reused": 2412,
     "rsa_moduli": 6116,
     "factorable": 4,
     "decay_pct": 34.7,
-    "own_priv_ssh_keys": 37077,
-    "reused_deployed": 36,
+    "operational_private_keys": 37077,
+    "reused_operational": 36,
 }
 
 
@@ -43,11 +43,18 @@ def _ok(got, exp) -> bool:
     return got == exp
 
 
+def _summary_value(summary: dict, canonical: str, legacy: str):
+    """Read canonical analyzer output while accepting the frozen dataset's legacy schema."""
+    return summary[canonical] if canonical in summary else summary[legacy]
+
+
 def check(dataset_dir: str, records: str | None = None) -> bool:
     with open(os.path.join(dataset_dir, "summary.json")) as handle:
         s = json.load(handle)
     fig = aggregate(iter_records_dir(records or dataset_dir), with_batchgcd=False)
-    weak_sig_pct = round(100.0 * fig["weak_sig"] / (fig["own_certs"] or 1), 1)
+    weak_sig_pct = round(
+        100.0 * fig["weak_sig"] / (fig["non_trust_store_certs"] or 1), 1
+    )
 
     got = {
         "images_ok": s["images_ok"],
@@ -55,18 +62,32 @@ def check(dataset_dir: str, records: str | None = None) -> bool:
         "quantum_vulnerable_pct": s["quantum_vulnerable_pct"],
         "post_quantum": s["post_quantum"],
         "pqc_capable_images": s["images_with_pqc_capable_library"],
-        "certs_own": s["certs_own"],
+        "certs_non_trust_store": _summary_value(
+            s, "certs_non_trust_store", "certs_own"
+        ),
         "weak_sig_pct": weak_sig_pct,
         "rsa_sub2048": fig["rsa_sub2048"],
         "rsa_512": fig["rsa_512"],
-        "own_keys": s["keys_own"],
-        "fingerprints": s["own_key_fingerprints"],
-        "reused": s["own_keys_reused_across_images"],
-        "rsa_moduli": s["own_rsa_moduli_unique"],
+        "non_trust_store_keys": _summary_value(
+            s, "keys_non_trust_store", "keys_own"
+        ),
+        "fingerprints": _summary_value(
+            s, "non_trust_store_key_fingerprints", "own_key_fingerprints"
+        ),
+        "reused": _summary_value(
+            s,
+            "non_trust_store_keys_reused_across_images",
+            "own_keys_reused_across_images",
+        ),
+        "rsa_moduli": _summary_value(
+            s, "non_trust_store_rsa_moduli_unique", "own_rsa_moduli_unique"
+        ),
         "factorable": s["factorable_moduli_shared_prime"],
         "decay_pct": s["decay_pct"],
-        "own_priv_ssh_keys": fig["location_total"],
-        "reused_deployed": s["deployed_private_keys_reused"],
+        "operational_private_keys": fig["location_total"],
+        "reused_operational": _summary_value(
+            s, "operational_private_keys_reused", "deployed_private_keys_reused"
+        ),
     }
     results = {k: _ok(got[k], EXPECTED[k]) for k in EXPECTED}
     ok = all(results.values())
@@ -74,7 +95,7 @@ def check(dataset_dir: str, records: str | None = None) -> bool:
     pqc = got["pqc_capable_images"]
     bar = "═" * 62
     print(bar)
-    print("  Claim: deployed cryptographic posture is not migrating")
+    print("  Claim: sampled cryptographic files show no post-quantum migration")
     print(f"  PQC-capable images  : {pqc:,} / {n:,}  ({100.0 * pqc / n:.1f}%)")
     print(f"  Post-quantum assets : {got['post_quantum']} / {got['public_key_assets']:,}"
           f"  ({got['quantum_vulnerable_pct']:.0f}% quantum-vulnerable)")

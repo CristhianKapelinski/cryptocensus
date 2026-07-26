@@ -61,7 +61,7 @@ class WeakConfigRecord:
 class ToolObservation:
     """A coarse, per-tool count used for inter-tool divergence analysis. Only counts
     from *independent third-party tools* are comparable; the built-in extractor is
-    recorded too but is treated as the calibrated instrument, not a divergence party."""
+    recorded too but is treated as the primary instrument, not a divergence party."""
 
     tool: str
     certificates: int

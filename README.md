@@ -1,11 +1,11 @@
 # CryptoCensus
 
 **A reproducible, distributed census of the cryptographic posture and post-quantum
-readiness of public container images.**
+readiness of cryptographic files shipped in public container images.**
 
 This repository is the research artifact for the paper *"CryptoCensus: Cryptographic
-Posture and Post-Quantum Readiness of Docker Hub"*. It pulls a
-uniform-random sample of Docker Hub images pinned by content digest, extracts the
+Posture and Post-Quantum Readiness of Docker Hub"*. It pulls an
+equal-probability sample of Docker Hub repositories, pins each pullable `latest` image by content digest, extracts the
 certificates, keys, cryptographic libraries, and weak TLS/SSH configuration each one
 ships, and reports how much of that material is weak, expired, reused, or
 **quantum-vulnerable (RSA/ECC) versus post-quantum ready** (NIST FIPS 203/204/205;
@@ -15,7 +15,7 @@ every quantitative claim in the paper from the released dataset.
 
 > **Paper:** *CryptoCensus: Cryptographic Posture and Post-Quantum Readiness of Docker Hub*, SBSeg 2026 (WTICG).
 
-![CryptoCensus pipeline: a uniform-random draw from the sampling frame, resolution of each reference to a content digest, a pull and flattening of each image, a calibrated extraction of its cryptographic material, and classification into population estimates.](docs/pipeline.png)
+![CryptoCensus pipeline: an equal-probability draw from the repository frame, resolution of each reference to a content digest, download and flattening of each image, extraction with independent cross-checks, and classification of the results.](docs/pipeline.png)
 
 ## README structure
 
@@ -106,7 +106,7 @@ PQC-capable library, and CBOM-Lens running alongside the built-in extractor on a
 We designate **one main claim** for reproduction — the paper's central result. One command
 reproduces it from the released dataset and asserts every paper number.
 
-### Claim #1 — the deployed cryptography has not begun its post-quantum migration
+### Claim #1 — cryptographic files in the sampled images show no post-quantum migration
 
 Paper: Abstract, Table 2, Section *Post-quantum readiness*.
 
@@ -115,8 +115,9 @@ scripts/run_claim.sh
 ```
 
 Downloads and verifies `dataset-v1` (if absent), re-runs the analyzer, regenerates the three
-figures, and checks every headline number against the paper. **≈ 13 minutes, ~6.7 GB peak
-RAM** measured on an AMD Ryzen 5 8600G (6 cores/12 threads), download excluded; single-threaded
+figures, and checks every headline number against the paper. **7m27s for a first run that
+also built the image; ~6.7 GB peak RAM** measured on an AMD Ryzen 5 8600G (6 cores/12 threads),
+download excluded; single-threaded
 (the analyzer loads all records for the batch-GCD pass over 6,116 moduli, which dominates both
 time and memory), no GPU. Numbers reproduce **exactly** — the pipeline uses no randomness and
 `dataset/run_manifest.csv` pins every image by digest.
@@ -124,17 +125,17 @@ time and memory), no GPU. Numbers reproduce **exactly** — the pipeline uses no
 **Expected result** — one `OK` per metric, ending in `RESULT: OK`:
 
 ```
-  Claim: deployed cryptographic posture is not migrating
+  Claim: sampled cryptographic files show no post-quantum migration
   PQC-capable images  : 801 / 11,962  (6.7%)
   Post-quantum assets : 0 / 4,211,380  (100% quantum-vulnerable)
   Weak-signature certs: 43.0%
   RSA keys < 2048-bit : 40,720  (5,552 at 512-bit)
   Reused fingerprints : 2,412 of 7,141
   RSA moduli / factorable (batch-GCD): 6,116 / 4
-  Unresolved (no latest tag): 34.7%
+  Unresolved (no latest tag): 34.8%
   ─────────────────────────────────────────────
   images_ok  11,962 | public_key_assets  4,211,380 | pqc_capable_images  801
-  certs_own  518,668 | weak_sig_pct  43 | rsa_sub2048  40,720 | ... every row OK
+  certs_non_trust_store  518,668 | weak_sig_pct  43 | rsa_sub2048  40,720 | ... every row OK
   RESULT: OK  - matches Table 2 of the paper
 ```
 

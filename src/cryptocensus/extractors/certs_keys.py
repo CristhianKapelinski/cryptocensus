@@ -1,14 +1,14 @@
-"""Built-in certificate/key extractor — the calibrated measurement instrument.
+"""Built-in certificate/key extractor used as the primary measurement instrument.
 
 It walks the root filesystem once and parses every X.509 certificate, private key,
 public key, and SSH key it finds using the `cryptography` library (standard
 PEM/DER/X.509/SSH parsing). It also records weak primitive tokens that appear in
 TLS/SSH configuration files.
 
-Certificates are tagged with `in_trust_store` so the analyzer can separate the CA
-trust bundle shipped by the base OS from cryptographic material introduced by the
-image author. This extractor's counts have been calibrated against an independent
-tool (CBOM-Lens) and agree exactly on reference images.
+Certificates are tagged with `in_trust_store` so the analyzer can separate known CA
+trust-store paths from other locations. This path-based split does not establish
+authorship or runtime use. Counts are compared with the independent CBOM-Lens tool,
+but that comparison is not a ground-truth calibration.
 """
 
 from __future__ import annotations

@@ -49,7 +49,7 @@ def test_extract_certs_and_keys(tmp_path):
     _write(os.path.join(root, "etc/ssl/certs/ca.pem"),
            ca.public_bytes(serialization.Encoding.PEM))
 
-    # An EC public key (own material).
+    # An EC public key outside a recognized trust-store path.
     ec_key = ec.generate_private_key(ec.SECP256R1())
     _write(os.path.join(root, "opt/keys/ec.pub"),
            ec_key.public_key().public_bytes(serialization.Encoding.PEM,
@@ -61,10 +61,10 @@ def test_extract_certs_and_keys(tmp_path):
     assert all(isinstance(v, (bytes, bytearray)) for v in blobs.values())
 
     assert len(certs) == 2
-    own = [c for c in certs if not c.in_trust_store]
+    non_trust_store = [c for c in certs if not c.in_trust_store]
     trust = [c for c in certs if c.in_trust_store]
-    assert len(own) == 1 and len(trust) == 1
-    assert own[0].key_type == "RSA" and own[0].key_size == 2048
+    assert len(non_trust_store) == 1 and len(trust) == 1
+    assert non_trust_store[0].key_type == "RSA" and non_trust_store[0].key_size == 2048
     assert all(c.pq_status == "quantum-vulnerable" for c in certs)
     assert all(c.self_signed for c in certs)
 
