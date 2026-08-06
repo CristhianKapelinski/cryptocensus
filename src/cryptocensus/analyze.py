@@ -64,8 +64,10 @@ def _pct(part: int, whole: int) -> float:
 def _reach_class(error: str | None) -> str:
     """Bucket an unavailable image by why it failed, so genuine decay (a reference that
     resolves to nothing) is separated from a bounded/oversized extraction (`too_large`),
-    a disk/network artifact (`infra`), an arch/auth issue, or anything else. Only `gone`
-    counts toward decay; the rest are alive images we did not (fully) scan."""
+    a disk/network artifact (`infra`), an arch/auth issue, or anything else. Only
+    `no_latest` counts toward decay; the rest are alive images we did not (fully) scan.
+    `no_latest` means the reference resolves to no `latest` manifest, which is what the
+    paper reports; it does not assert that the repository was deleted."""
     e = (error or "").lower()
     if "too_large" in e or "exceeds" in e:
         return "too_large"
@@ -78,7 +80,7 @@ def _reach_class(error: str | None) -> str:
     if any(s in e for s in ("not found", "manifest unknown", "manifest_unknown", "name unknown",
                             "name_unknown", "does not exist", "no such", "failed to resolve",
                             "unknown tag")):
-        return "gone"
+        return "no_latest"
     return "other"
 
 
@@ -133,7 +135,7 @@ def aggregate(images: list[dict]) -> tuple[dict, list[dict], list[dict], list]:
 
     reach = Counter(_reach_class(im.get("error")) for im in images if not im.get("ok"))
     reach["scanned"] = len(ok)
-    genuine_decay = reach.get("gone", 0)
+    genuine_decay = reach.get("no_latest", 0)
     # Non-resolution rate over every reference with a determinate outcome: scanned, plus
     # those that resolved but fell out of scope, plus those that did not resolve.
     decay_den = len(images)
