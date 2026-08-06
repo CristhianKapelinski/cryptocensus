@@ -50,6 +50,7 @@ paper's claim:
 | Minimal test | Quick functional verification (~1.5 min) |
 | Experiments | Reproduction of the paper's main claim |
 | License | Licensing information |
+| How to cite | Paper reference and machine-readable `CITATION.cff` |
 
 The repository is organized as follows:
 
@@ -229,3 +230,22 @@ construction, and the measurement's limitations are in
 ## License
 
 MIT, see [LICENSE](LICENSE).
+
+## How to cite
+
+Cite the paper, not the repository:
+
+> Kapelinski, C. and Kreutz, D. (2026). CryptoCensus: Cryptographic Posture and Post-Quantum Readiness of Docker Hub. In *Anais do XXVII Simpósio Brasileiro de Segurança da Informação e de Sistemas Computacionais (SBSeg 2026), Workshop de Trabalhos de Iniciação Científica e de Graduação (WTICG)*. Sociedade Brasileira de Computação.
+
+```bibtex
+@inproceedings{kapelinski2026cryptocensus,
+  author    = {Kapelinski, Cristhian and Kreutz, Diego},
+  title     = {CryptoCensus: Cryptographic Posture and Post-Quantum Readiness of Docker Hub},
+  booktitle = {Anais do XXVII Simpósio Brasileiro de Segurança da Informação e de Sistemas Computacionais (SBSeg 2026), Workshop de Trabalhos de Iniciação Científica e de Graduação (WTICG)},
+  year      = {2026},
+  publisher = {Sociedade Brasileira de Computação},
+}
+```
+
+[`CITATION.cff`](CITATION.cff) carries the same metadata in machine-readable form, so GitHub's
+"Cite this repository" button and tools such as Zenodo pick it up automatically.
