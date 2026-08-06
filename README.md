@@ -1,5 +1,7 @@
 # CryptoCensus
 
+[![artifact](https://github.com/CristhianKapelinski/cryptocensus/actions/workflows/artifact.yml/badge.svg)](https://github.com/CristhianKapelinski/cryptocensus/actions/workflows/artifact.yml)
+
 **A reproducible, distributed census of the cryptographic posture and post-quantum
 readiness of cryptographic files shipped in public container images.**
 

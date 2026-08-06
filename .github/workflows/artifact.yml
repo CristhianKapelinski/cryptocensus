@@ -6,6 +6,11 @@ name: artifact
 # in a pinned dependency, a tool download that moved, or a file forgotten in
 # .gitignore shows up here instead of in a review.
 #
+# The job on every push stays deliberately cheap (a minute or so), because a check
+# that costs ten minutes of runner time per commit is one that gets ignored or
+# throttled. The image build is the one expensive step, so it runs weekly and on
+# demand rather than on every push.
+#
 # Two paths of the README are deliberately absent. `minimal_test.sh` pulls five
 # images from Docker Hub, whose anonymous rate limit is shared across the hosted
 # runners and would make this job fail for reasons unrelated to the artifact.
@@ -23,7 +28,7 @@ on:
 jobs:
   reviewer-path:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
 
@@ -39,8 +44,17 @@ jobs:
       - name: Lint
         run: uv run ruff check .
 
-      # The single pinned image is the whole install path of the README, and it is
-      # where a moved third-party download would break the artifact silently.
+  # The single pinned image is the whole install path of the README, and it is where
+  # a moved third-party download would break the artifact silently. It also takes
+  # several minutes of runner time, so it is checked weekly and on demand instead of
+  # on every push.
+  image:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
       - name: Build the pinned image
         run: docker build -t cryptocensus:latest .
 
