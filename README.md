@@ -147,6 +147,15 @@ PQC-capable library, and CBOM-Lens running alongside the built-in extractor on a
 
 ## Experiments
 
+> # ⚠️ READ THIS BEFORE RUNNING ANY EXPERIMENT
+>
+> **You are expected to run ONE command, `scripts/run_claim.sh`. It reproduces the whole paper. Everything else on this page is optional.**
+>
+> - **Claim #1 is the only claim.** `scripts/run_claim.sh` takes **about 7 minutes** and checks every headline number against the paper.
+> - **`reduced_census.sh` is optional** and exercises the live pipeline on 10 repositories, bounded by how fast Docker Hub serves those pulls. It is not needed for Claim #1.
+> - **Do NOT run `reproduce_from_scratch.sh`.** It re-pulls the full 20,000-reference frame and Docker Hub's rate limit puts it at roughly **600 hours, about three to four weeks**, on one host. It exists to document how the dataset was built, not for evaluation.
+> - **The minimal test needs no dataset** and finishes in about 1.5 minutes, so run it first if you only want to confirm the setup works.
+
 We designate **one main claim** for reproduction: the paper's central result. One command
 reproduces it from the released dataset and asserts every paper number.
 
