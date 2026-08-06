@@ -37,7 +37,7 @@ The seals considered are **Available (SeloD)**, **Functional (SeloF)**, **Sustai
 
 - **Available (SeloD):** all source, the pinned [`Dockerfile`](Dockerfile), the sampling frames, and the docs are in this public repo under an open license.
 - **Functional (SeloF):** unit tests plus [`scripts/minimal_test.sh`](scripts/minimal_test.sh) build and run the full pipeline end to end.
-- **Sustainable (SeloS):** a modular [`src/`](src/cryptocensus/) package, one module per concern, fully env-configured with no hardcoded paths, documented in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+- **Sustainable (SeloS):** 23 modules, one concern each, every one with a docstring, every measurement decision a named function, and no hardcoded paths; [`docs/SUSTAINABILITY.md`](docs/SUSTAINABILITY.md) walks through the code, the dataset schema, and where each headline number is computed, and [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) documents the design.
 - **Reproducible (SeloR):** [`scripts/run_claim.sh`](scripts/run_claim.sh) regenerates and asserts every headline number from the released dataset; [`scripts/reduced_census.sh`](scripts/reduced_census.sh) re-runs the live pipeline at small scale.
 
 ## Basic information (environment)
