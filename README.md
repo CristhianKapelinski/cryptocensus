@@ -122,10 +122,15 @@ git clone https://github.com/CristhianKapelinski/cryptocensus && cd cryptocensus
 docker build -t cryptocensus:latest .        # single pinned image; all tools are inside it
 ```
 
-For native development and unit tests, install the package and development
-dependencies explicitly:
+This is the whole evaluator path: `uv` is not needed on the host, because it runs
+inside the image.
+
+For native development and unit tests only, install `uv` and let it create the
+environment. Its installer places `uv` in `~/.local/bin`, which the current shell
+picks up only after the `source` below or a new login shell:
 
 ```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh && . "$HOME/.local/bin/env"
 uv sync --extra dev
 uv run pytest -q
 ```
