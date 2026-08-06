@@ -184,7 +184,7 @@ time and memory), no GPU. Numbers reproduce **exactly**, because the pipeline us
 
 ```
   Claim: sampled cryptographic files show no post-quantum migration
-  PQC-capable images  : 801 / 11,962  (6.7%)
+  PQC-capable images  : 801 / 11,962  (6.7%, 95% CI 6.3-7.2)
   Post-quantum assets : 0 / 4,211,380  (100% quantum-vulnerable)
   Weak-signature certs: 43.0%
   RSA keys < 2048-bit : 40,720  (5,552 at 512-bit)

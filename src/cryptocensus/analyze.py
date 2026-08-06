@@ -242,6 +242,11 @@ def aggregate(images: list[dict]) -> tuple[dict, list[dict], list[dict], list]:
         "non_trust_store_rsa_moduli_unique": len(unique_moduli),
         "factorable_moduli_shared_prime": len(factorable),
         "images_with_pqc_capable_library": len(pqc_capable_images),
+        "pqc_capable_pct": _pct(len(pqc_capable_images), len(ok)),
+        # Share of scanned images carrying a post-quantum capable library, with the
+        # same Wilson interval used for the reachability rate. The paper reports both,
+        # so both are regenerated here rather than only the point estimate.
+        "pqc_capable_ci95": list(wilson_pct(len(pqc_capable_images), len(ok))),
         "weak_config_tokens": dict(weak_cfg_tokens.most_common()),
         "tool_divergence_images": len(divergence),
     }
@@ -315,7 +320,8 @@ def format_report(summary: dict) -> str:
         f"  operational private keys reused: {s['operational_private_keys_reused']}",
         f"non-trust-store unique RSA moduli: {s['non_trust_store_rsa_moduli_unique']}",
         f"  factorable (shared prime)     : {s['factorable_moduli_shared_prime']}",
-        f"images w/ PQC-capable library   : {s['images_with_pqc_capable_library']}",
+        f"images w/ PQC-capable library   : {s['images_with_pqc_capable_library']}"
+        f" ({s['pqc_capable_pct']}%, 95% CI {s['pqc_capable_ci95'][0]}-{s['pqc_capable_ci95'][1]})",
         f"weak TLS/SSH config tokens      : {s['weak_config_tokens']}",
         f"images for tool-divergence      : {s['tool_divergence_images']}",
         "=" * 64,

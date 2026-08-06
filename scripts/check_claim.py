@@ -22,6 +22,9 @@ EXPECTED = {
     "quantum_vulnerable_pct": 100.0,
     "post_quantum": 0,
     "pqc_capable_images": 801,
+    "pqc_capable_pct": 6.7,
+    "pqc_capable_ci95_lo": 6.3,
+    "pqc_capable_ci95_hi": 7.2,
     "certs_non_trust_store": 518668,
     "weak_sig_pct": 43.0,
     "rsa_sub2048": 40720,
@@ -62,6 +65,9 @@ def check(dataset_dir: str, records: str | None = None) -> bool:
         "quantum_vulnerable_pct": s["quantum_vulnerable_pct"],
         "post_quantum": s["post_quantum"],
         "pqc_capable_images": s["images_with_pqc_capable_library"],
+        "pqc_capable_pct": s["pqc_capable_pct"],
+        "pqc_capable_ci95_lo": s["pqc_capable_ci95"][0],
+        "pqc_capable_ci95_hi": s["pqc_capable_ci95"][1],
         "certs_non_trust_store": _summary_value(
             s, "certs_non_trust_store", "certs_own"
         ),
@@ -96,7 +102,8 @@ def check(dataset_dir: str, records: str | None = None) -> bool:
     bar = "═" * 62
     print(bar)
     print("  Claim: sampled cryptographic files show no post-quantum migration")
-    print(f"  PQC-capable images  : {pqc:,} / {n:,}  ({100.0 * pqc / n:.1f}%)")
+    print(f"  PQC-capable images  : {pqc:,} / {n:,}  ({100.0 * pqc / n:.1f}%,"
+          f" 95% CI {got['pqc_capable_ci95_lo']}-{got['pqc_capable_ci95_hi']})")
     print(f"  Post-quantum assets : {got['post_quantum']} / {got['public_key_assets']:,}"
           f"  ({got['quantum_vulnerable_pct']:.0f}% quantum-vulnerable)")
     print(f"  Weak-signature certs: {weak_sig_pct:.1f}%")
