@@ -2,11 +2,11 @@
 
 ## Design goals
 
-1. **Reproducible** — pinned tools, deterministic extraction, released dataset.
-2. **Distributed** — scale horizontally by adding workers on more machines.
-3. **Daemonless & safe** — images are pulled and flattened, never executed; the
+1. **Reproducible.** Pinned tools, deterministic extraction, released dataset.
+2. **Distributed.** Scale horizontally by adding workers on more machines.
+3. **Daemonless and safe.** Images are pulled and flattened, never executed; the
    tarball is extracted with path-traversal and special-file protection.
-4. **Honest measurement** — trust-store and non-trust-store paths are separated; PQC
+4. **Honest measurement.** Trust-store and non-trust-store paths are separated; PQC
    *capability* and *usage* are distinguished; only independent tools are compared
    for divergence.
 
@@ -31,7 +31,7 @@
 worker's task survives in `processing` until `requeue-stale` returns it. On success the
 worker pushes a result and `ack`s (removes from `processing`, adds to `done`).
 Results are a separate list drained by the collector, so the only cross-machine
-dependency is reachable Redis — no shared filesystem is required.
+dependency is reachable Redis; no shared filesystem is required.
 
 ### Scaling and tradeoffs
 
