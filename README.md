@@ -86,6 +86,14 @@ git clone https://github.com/CristhianKapelinski/cryptocensus && cd cryptocensus
 docker build -t cryptocensus:latest .        # single pinned image; all tools are inside it
 ```
 
+For native development and unit tests, install the package and development
+dependencies explicitly:
+
+```bash
+uv sync --extra dev
+uv run pytest -q
+```
+
 ## Minimal test (≈ 1.5 minutes)
 
 ```bash
