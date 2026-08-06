@@ -1,0 +1,48 @@
+name: artifact
+
+# Runs the evaluator's own path on a clean Ubuntu runner, on every push and once a
+# week. The point is not the unit tests: it is that the exact commands the README
+# gives a reviewer keep working on a machine with none of the author's state. A drift
+# in a pinned dependency, a tool download that moved, or a file forgotten in
+# .gitignore shows up here instead of in a review.
+#
+# Two paths of the README are deliberately absent. `minimal_test.sh` pulls five
+# images from Docker Hub, whose anonymous rate limit is shared across the hosted
+# runners and would make this job fail for reasons unrelated to the artifact.
+# `run_claim.sh` downloads a ~2 GB dataset and peaks at ~6.7 GB of RAM, which does
+# not fit a hosted runner. Both are covered by the clean-machine runs recorded in
+# the README instead.
+
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+jobs:
+  reviewer-path:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Install pinned dependencies
+        run: uv sync --extra dev
+
+      - name: Unit tests
+        run: uv run pytest -q
+
+      - name: Lint
+        run: uv run ruff check .
+
+      # The single pinned image is the whole install path of the README, and it is
+      # where a moved third-party download would break the artifact silently.
+      - name: Build the pinned image
+        run: docker build -t cryptocensus:latest .
+
+      - name: The pipeline runs inside the image
+        run: docker run --rm cryptocensus:latest python -c "import cryptocensus; print(cryptocensus.__name__, 'imports inside the image')"
