@@ -159,7 +159,7 @@ PQC-capable library, and CBOM-Lens running alongside the built-in extractor on a
 >
 > **You are expected to run ONE command, `scripts/run_claim.sh`. It reproduces the whole paper. Everything else on this page is optional.**
 >
-> - **Claim #1 is the only claim.** `scripts/run_claim.sh` takes **about 7 minutes** and checks every headline number against the paper.
+> - **Claim #1 is the only claim.** `scripts/run_claim.sh` takes **about 8 minutes** and checks every headline number against the paper.
 > - **`reduced_census.sh` is optional** and exercises the live pipeline on 10 repositories, bounded by how fast Docker Hub serves those pulls. It is not needed for Claim #1.
 > - **Do NOT run `reproduce_from_scratch.sh`.** It re-pulls the full 20,000-reference frame and Docker Hub's rate limit puts it at roughly **600 hours, about three to four weeks**, on one host. It exists to document how the dataset was built, not for evaluation.
 > - **The minimal test needs no dataset** and finishes in about 1.5 minutes, so run it first if you only want to confirm the setup works.
@@ -176,9 +176,9 @@ scripts/run_claim.sh
 ```
 
 Downloads and verifies `dataset-v1` (if absent), re-runs the analyzer, regenerates the three
-figures, and checks every headline number against the paper. **7m27s for a first run that
-also built the image; ~6.7 GB peak RAM** measured on an AMD Ryzen 5 8600G (6 cores/12 threads),
-download excluded; single-threaded
+figures, and checks every headline number against the paper. **7m27s to 8m00s across runs;
+~6.7 GB peak RAM** measured on an AMD Ryzen 5 8600G (6 cores/12 threads), download excluded;
+single-threaded
 (the analyzer loads all records for the batch-GCD pass over 6,116 moduli, which dominates both
 time and memory), no GPU. Numbers reproduce **exactly**, because the pipeline uses no randomness and
 `dataset/run_manifest.csv` pins every image by digest.
