@@ -17,6 +17,8 @@ started in these images. The artifact reproduces every quantitative claim in the
 the released dataset.
 
 > **Paper:** *CryptoCensus: Cryptographic Posture and Post-Quantum Readiness of Docker Hub*, SBSeg 2026 (WTICG).
+
+> **For the artifact evaluation, this README is the only file you need to read.** The other Markdown files in the repository are complementary: they document internals and go deeper than the review requires.
 >
 > **Abstract.** Under a draft schedule from the National Institute of Standards and
 > Technology (NIST), affected systems would stop using Rivest-Shamir-Adleman (RSA) and
