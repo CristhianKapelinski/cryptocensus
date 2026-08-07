@@ -22,6 +22,10 @@ docker build -t "${IMAGE}" .
 
 echo "==> Starting Redis"
 docker network create "${NET}" >/dev/null 2>&1 || true
+# A container left behind by an interrupted run holds this fixed name, and
+# `docker run --name` refuses to reuse it -- so the evaluator's first command fails
+# with a name conflict on a machine that is otherwise fine. Clear it first.
+docker rm -f "${REDIS}" >/dev/null 2>&1 || true
 docker run -d --name "${REDIS}" --network "${NET}" \
   redis:7-alpine@sha256:6ab0b6e7381779332f97b8ca76193e45b0756f38d4c0dcda72dbb3c32061ab99 \
   redis-server --save "" --appendonly no >/dev/null
