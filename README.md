@@ -227,6 +227,16 @@ All behaviour is `CC_*`-configured; the full config reference, the sampling-fram
 construction, and the measurement's limitations are in
 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
+## Cleaning up
+
+One command removes everything a run created, the dataset, the environment and the pinned image. It never touches anything tracked by git.
+
+```bash
+./cleanup.sh
+```
+
+Pass `--dry-run` to list what would go without removing it (about ~2.8 GB).
+
 ## License
 
 MIT, see [LICENSE](LICENSE).
