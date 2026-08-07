@@ -37,20 +37,18 @@ the released dataset.
 
 ## README structure
 
-This README runs in the order below, from what the artifact is to how to reproduce the
-paper's claim:
-
 | Section | Description |
 |---|---|
-| Seals considered | Quality seals targeted by this artifact |
-| Basic information | Hardware, OS, and software environment |
-| Dependencies | Required packages and external tools |
-| Security concerns | Risks and mitigations for evaluators |
-| Installation | Step-by-step local setup |
-| Minimal test | Quick functional verification (~1.5 min) |
-| Experiments | Reproduction of the paper's main claim |
-| License | Licensing information |
-| How to cite | Paper reference and machine-readable `CITATION.cff` |
+| [Seals considered](#seals-considered) | The four seals and why each one holds |
+| [Basic information](#basic-information-environment) | Hardware, OS, and software environment |
+| [Dependencies](#dependencies) | Required packages and external tools |
+| [Security concerns](#security-concerns) | Risks and mitigations for evaluators |
+| [Installation](#installation) | Step-by-step local setup |
+| [Minimal test](#minimal-test--15-minutes) | Quick functional verification (~1.5 min) |
+| [Experiments](#experiments) | Reproduction of the paper's main claim |
+| [Cleaning up](#cleaning-up) | One command removes what a run created |
+| [License](#license) | Licensing information |
+| [How to cite](#how-to-cite) | Paper reference and machine-readable `CITATION.cff` |
 
 The repository is organized as follows:
 
@@ -162,15 +160,12 @@ PQC-capable library, and CBOM-Lens running alongside the built-in extractor on a
 > - **Do NOT run `reproduce_from_scratch.sh`.** It re-pulls the full 20,000-reference frame and Docker Hub's rate limit puts it at roughly **600 hours, about three to four weeks**, on one host. It exists to document how the dataset was built, not for evaluation.
 > - **The minimal test needs no dataset** and finishes in about 1.5 minutes, so run it first if you only want to confirm the setup works.
 
-We designate **one main claim** for reproduction: the paper's central result. One command
-reproduces it from the released dataset and asserts every paper number.
-
 ### Claim #1: cryptographic files in the sampled images show no post-quantum migration
 
 Paper: Abstract, Table 2, Section *Post-quantum readiness*.
 
 ```bash
-scripts/run_claim.sh
+bash scripts/run_claim.sh
 ```
 
 Downloads and verifies `dataset-v1` (if absent), re-runs the analyzer, regenerates the three
@@ -198,8 +193,12 @@ time and memory), no GPU. Numbers reproduce **exactly**, because the pipeline us
   RESULT: OK  - matches Table 2 of the paper
 ```
 
-The regenerated paper figures land in `dataset/` next to `summary.json`. Open them with
-e.g. `xdg-open dataset/fig_posture.pdf` (also `fig_repro.pdf` and `fig_keys.pdf`).
+The regenerated paper figures land in `dataset/` on the host, next to `summary.json`.
+Open the three of them with:
+
+```bash
+xdg-open dataset/fig_posture.pdf; xdg-open dataset/fig_repro.pdf; xdg-open dataset/fig_keys.pdf
+```
 
 ### Optional: re-run the census live
 
