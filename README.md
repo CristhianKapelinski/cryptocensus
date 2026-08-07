@@ -131,7 +131,8 @@ environment. Its installer places `uv` in `~/.local/bin`, which the current shel
 picks up only after the `source` below or a new login shell:
 
 ```bash
-curl -LsSf https://astral.sh/uv/install.sh | sh && . "$HOME/.local/bin/env"
+curl -LsSf https://astral.sh/uv/install.sh | sh
+export PATH="$HOME/.local/bin:$PATH"   # where the installer puts uv; the current shell needs telling
 uv sync --extra dev
 uv run pytest -q
 ```
