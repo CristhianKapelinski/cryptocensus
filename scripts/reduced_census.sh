@@ -9,6 +9,9 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
+. "$(dirname "$0")/require.sh"
+require_docker
+
 N="${1:-10}"
 IMAGE="${CC_IMAGE:-cryptocensus:latest}"
 NET="cryptocensus-net"

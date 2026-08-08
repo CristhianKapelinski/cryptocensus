@@ -91,8 +91,22 @@ The seals considered are **Available (SeloD)**, **Functional (SeloF)**, **Sustai
 ## Dependencies
 
 All third-party tools are pinned in the `Dockerfile` and run inside the image. On the host
-the reproduction scripts need only Docker plus `curl`/`tar`/`sha256sum` for the one-time
-download; nothing else is installed on the host.
+the reproduction scripts need only `git` (to clone), Docker, and `curl`/`tar`/`sha256sum`
+for the one-time download; nothing else is installed on the host. The Docker daemon must be
+running and usable by your user without `sudo`.
+
+```bash
+sudo apt-get update && sudo apt-get install -y git docker.io curl tar coreutils   # Debian, Ubuntu
+sudo dnf install -y git docker curl tar coreutils                                 # Fedora, RHEL
+sudo pacman -Sy --needed git docker curl tar coreutils                            # Arch
+sudo zypper install -y git docker curl tar coreutils                              # openSUSE
+sudo usermod -aG docker "$USER" && newgrp docker                                  # use docker without sudo
+```
+
+Package names for Docker differ between distributions; the
+[upstream instructions](https://docs.docker.com/engine/install/) are authoritative. Every
+script the evaluator runs checks for Docker and for a reachable daemon before doing any
+work, and prints the command for the package manager it finds.
 
 | Tool | Version | Role |
 |------|---------|------|

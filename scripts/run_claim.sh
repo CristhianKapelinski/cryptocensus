@@ -10,6 +10,9 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
+. "$(dirname "$0")/require.sh"
+require_docker
+
 # Absolute path: Docker -v treats a relative path as a named volume, not this host dir.
 DATASET="$(realpath -m "${1:-dataset}")"
 IMAGE="${CC_IMAGE:-cryptocensus:latest}"

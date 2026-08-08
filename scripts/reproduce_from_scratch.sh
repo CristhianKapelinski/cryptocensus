@@ -19,6 +19,9 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
+. "$(dirname "$0")/require.sh"
+require_docker
+
 FRAME="${1:-config/sample-20000.txt}"
 # SHA256 of the published uniform-random frame; verified when the default frame is used.
 FRAME_SHA256=602a39dd5b4e3b2f8d4813c71b10e5d33cc2468cd36b731c8a4af133e8aa76e8
