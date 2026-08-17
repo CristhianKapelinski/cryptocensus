@@ -64,8 +64,9 @@ The repository is organized as follows:
 | [`docs/`](docs/) | [`ARCHITECTURE.md`](docs/ARCHITECTURE.md) (design and threat model) and [`SUSTAINABILITY.md`](docs/SUSTAINABILITY.md) (code, dataset schema, and where each number is computed) |
 | [`Dockerfile`](Dockerfile), [`pyproject.toml`](pyproject.toml), [`uv.lock`](uv.lock) | the single pinned image and the pinned dependency set |
 
-The dataset is not in the repository. It is published as the `dataset-v1` release and
-downloaded and checksum-verified by `run_claim.sh` on first use.
+The dataset is not in the repository. It is published as `dataset-v1` in this project's
+package registry and downloaded and checksum-verified by `run_claim.sh` on first use.
+No account or token is needed: the project is public and the download is anonymous.
 
 ## Seals considered
 
@@ -85,7 +86,7 @@ The seals considered are **Available (SeloD)**, **Functional (SeloF)**, **Sustai
 | **Minimum** | x86-64. Minimal test: 2 cores · 4 GB RAM. Claim #1 (`run_claim`): ~6.7 GB peak RAM measured (loads all records for batch-GCD), so **≥ 8 GB RAM** recommended; ~2 GB disk for the dataset archive |
 | **OS** | Linux x86-64 (tested on Ubuntu 24.04 / Debian 12) |
 | **Software** | Docker ≥ 24 (tested on 27.5; Compose v2 optional). Everything else (Python 3.12, `uv`, crane, the analyzer) runs inside the image; nothing is installed on the host. |
-| **Host tools** | `curl`, `tar`, `sha256sum` (coreutils) for the one-time dataset download; `gh` optional (with a `curl` fallback) |
+| **Host tools** | `curl`, `tar`, `sha256sum` (coreutils) for the one-time dataset download |
 | **Network** | Docker Hub access for image pulls; anonymous pulls are rate-limited, a Docker Hub login raises the limit for the full census (not needed for the minimal test) |
 
 ## Dependencies

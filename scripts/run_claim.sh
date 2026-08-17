@@ -16,8 +16,9 @@ require_docker
 # Absolute path: Docker -v treats a relative path as a named volume, not this host dir.
 DATASET="$(realpath -m "${1:-dataset}")"
 IMAGE="${CC_IMAGE:-cryptocensus:latest}"
-DATASET_URL="${CC_DATASET_URL:-https://gitlab.com/cristhianavila.aluno/cryptocensus/releases/download/dataset-v1/cryptocensus-dataset.tar.gz}"
-REPO="CristhianKapelinski/cryptocensus"
+# dataset-v1 lives in this project's generic package registry; SHA256SUMS sits beside it,
+# so the checksum URL is derived from DATASET_URL and stays consistent if you override it.
+DATASET_URL="${CC_DATASET_URL:-https://gitlab.com/api/v4/projects/85478201/packages/generic/cryptocensus-dataset/v1/cryptocensus-dataset.tar.gz}"
 TARBALL="$DATASET/cryptocensus-dataset.tar.gz"
 
 mkdir -p "$DATASET"
@@ -27,13 +28,8 @@ mkdir -p "$DATASET"
 if [ ! -d "$DATASET/records" ] && [ ! -f "$TARBALL" ]; then
   echo "==> Downloading dataset-v1 into $DATASET and verifying"
   sums="$DATASET/SHA256SUMS"
-  if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
-    gh release download dataset-v1 -R "$REPO" -p "$(basename "$TARBALL")" -O "$TARBALL" --clobber
-    gh release download dataset-v1 -R "$REPO" -p SHA256SUMS -O "$sums" --clobber
-  else
-    curl -fsSL "$DATASET_URL" -o "$TARBALL"
-    curl -fsSL "${DATASET_URL%/*}/SHA256SUMS" -o "$sums"
-  fi
+  curl -fsSL "$DATASET_URL" -o "$TARBALL"
+  curl -fsSL "${DATASET_URL%/*}/SHA256SUMS" -o "$sums"
   ( cd "$DATASET" && grep -E 'cryptocensus-dataset\.tar\.gz$' SHA256SUMS | sha256sum -c - ) \
     || { echo "checksum FAILED"; rm -f "$TARBALL" "$sums"; exit 1; }
   rm -f "$sums"
