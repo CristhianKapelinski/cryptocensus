@@ -16,7 +16,7 @@ require_docker
 # Absolute path: Docker -v treats a relative path as a named volume, not this host dir.
 DATASET="$(realpath -m "${1:-dataset}")"
 IMAGE="${CC_IMAGE:-cryptocensus:latest}"
-DATASET_URL="${CC_DATASET_URL:-https://github.com/CristhianKapelinski/cryptocensus/releases/download/dataset-v1/cryptocensus-dataset.tar.gz}"
+DATASET_URL="${CC_DATASET_URL:-https://gitlab.com/cristhianavila.aluno/cryptocensus/releases/download/dataset-v1/cryptocensus-dataset.tar.gz}"
 REPO="CristhianKapelinski/cryptocensus"
 TARBALL="$DATASET/cryptocensus-dataset.tar.gz"
 

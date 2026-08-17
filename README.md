@@ -133,7 +133,7 @@ queue you start.
 Everything runs through one Docker image, so this is the only required step:
 
 ```bash
-git clone https://github.com/CristhianKapelinski/cryptocensus && cd cryptocensus
+git clone https://gitlab.com/cristhianavila.aluno/cryptocensus && cd cryptocensus
 docker build -t cryptocensus:latest .        # single pinned image; all tools are inside it
 ```
 
