@@ -41,3 +41,17 @@ require_docker() {
         exit 1
     }
 }
+
+# SHA-256 on the host. GNU coreutils ships sha256sum; the BSD userland on macOS does not,
+# and ships shasum instead. Both read the same "<sum>  <file>" format on stdin.
+sha256_check() {
+    if command -v sha256sum >/dev/null 2>&1; then sha256sum -c -
+    else shasum -a 256 -c -
+    fi
+}
+
+sha256_of() {
+    if command -v sha256sum >/dev/null 2>&1; then sha256sum "$1" | cut -d' ' -f1
+    else shasum -a 256 "$1" | cut -d' ' -f1
+    fi
+}

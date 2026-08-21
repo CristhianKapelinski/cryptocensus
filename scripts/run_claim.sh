@@ -3,7 +3,7 @@
 # dataset, then analyze it, regenerate the figures, and print a pass/fail block. Records
 # are read by STREAMING the released archive, so the ~20k record files are never extracted
 # to disk — fast, and safe on filesystems that choke on many small files. Needs only Docker
-# plus coreutils (curl/tar/sha256sum) for the one-time download.
+# plus curl/tar and either sha256sum or shasum for the one-time download.
 #
 #   bash scripts/run_claim.sh              # downloads the released dataset if absent
 #   bash scripts/run_claim.sh DATASET      # uses an existing dataset directory or archive
@@ -14,23 +14,24 @@ cd "$(dirname "$0")/.."
 require_docker
 
 # Absolute path: Docker -v treats a relative path as a named volume, not this host dir.
-DATASET="$(realpath -m "${1:-dataset}")"
+# Built with mkdir/cd/pwd rather than `realpath -m`, which is GNU-only and absent from the
+# BSD userland on macOS.
+mkdir -p "${1:-dataset}"
+DATASET="$(cd "${1:-dataset}" && pwd)"
 IMAGE="${CC_IMAGE:-cryptocensus:latest}"
-# dataset-v1 lives in this project's generic package registry; SHA256SUMS sits beside it,
+# dataset-v2 lives in this project's generic package registry; SHA256SUMS sits beside it,
 # so the checksum URL is derived from DATASET_URL and stays consistent if you override it.
-DATASET_URL="${CC_DATASET_URL:-https://gitlab.com/api/v4/projects/85478201/packages/generic/cryptocensus-dataset/v1/cryptocensus-dataset.tar.gz}"
+DATASET_URL="${CC_DATASET_URL:-https://gitlab.com/api/v4/projects/85478201/packages/generic/cryptocensus-dataset/v2/cryptocensus-dataset.tar.gz}"
 TARBALL="$DATASET/cryptocensus-dataset.tar.gz"
-
-mkdir -p "$DATASET"
 
 # Fetch the archive into the run folder (never the host /tmp) unless the dataset is already
 # present as an extracted records/ dir or as the archive itself.
 if [ ! -d "$DATASET/records" ] && [ ! -f "$TARBALL" ]; then
-  echo "==> Downloading dataset-v1 into $DATASET and verifying"
+  echo "==> Downloading dataset-v2 into $DATASET and verifying"
   sums="$DATASET/SHA256SUMS"
   curl -fsSL "$DATASET_URL" -o "$TARBALL"
   curl -fsSL "${DATASET_URL%/*}/SHA256SUMS" -o "$sums"
-  ( cd "$DATASET" && grep -E 'cryptocensus-dataset\.tar\.gz$' SHA256SUMS | sha256sum -c - ) \
+  ( cd "$DATASET" && grep -E 'cryptocensus-dataset\.tar\.gz$' SHA256SUMS | sha256_check ) \
     || { echo "checksum FAILED"; rm -f "$TARBALL" "$sums"; exit 1; }
   rm -f "$sums"
 fi

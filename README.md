@@ -44,6 +44,7 @@ the released dataset.
 | [Seals considered](#seals-considered) | The four seals and why each one holds |
 | [Basic information](#basic-information-environment) | Hardware, OS, and software environment |
 | [Dependencies](#dependencies) | Required packages and external tools |
+| [Running on macOS](#running-on-macos) | Stock macOS and Apple Silicon under emulation |
 | [Security concerns](#security-concerns) | Risks and mitigations for evaluators |
 | [Installation](#installation) | Step-by-step local setup |
 | [Minimal test](#minimal-test--15-minutes) | Quick functional verification (~1.5 min) |
@@ -64,7 +65,7 @@ The repository is organized as follows:
 | [`docs/`](docs/) | [`ARCHITECTURE.md`](docs/ARCHITECTURE.md) (design and threat model) and [`SUSTAINABILITY.md`](docs/SUSTAINABILITY.md) (code, dataset schema, and where each number is computed) |
 | [`Dockerfile`](Dockerfile), [`pyproject.toml`](pyproject.toml), [`uv.lock`](uv.lock) | the single pinned image and the pinned dependency set |
 
-The dataset is not in the repository. It is published as `dataset-v1` in this project's
+The dataset is not in the repository. It is published as `dataset-v2` in this project's
 package registry and downloaded and checksum-verified by `run_claim.sh` on first use.
 No account or token is needed: the project is public and the download is anonymous.
 
@@ -84,16 +85,16 @@ The seals considered are **Available (SeloD)**, **Functional (SeloF)**, **Sustai
 |---|---|
 | **Hardware (paper census)** | commodity x86-64 hosts (8-core Intel i7-9700 · 32 GB RAM · Debian/Ubuntu) |
 | **Minimum** | x86-64. Minimal test: 2 cores · 4 GB RAM. Claim #1 (`run_claim`): ~6.7 GB peak RAM measured (loads all records for batch-GCD), so **≥ 8 GB RAM** recommended; ~2 GB disk for the dataset archive |
-| **OS** | Linux x86-64 (tested on Ubuntu 24.04 / Debian 12) |
+| **OS** | Linux x86-64 (tested on Ubuntu 24.04 / Debian 12). macOS also works, including Apple Silicon — see [Running on macOS](#running-on-macos) |
 | **Software** | Docker ≥ 24 (tested on 27.5; Compose v2 optional). Everything else (Python 3.12, `uv`, crane, the analyzer) runs inside the image; nothing is installed on the host. |
-| **Host tools** | `curl`, `tar`, `sha256sum` (coreutils) for the one-time dataset download |
+| **Host tools** | `curl`, `tar`, and `sha256sum` (Linux) or `shasum` (macOS) for the one-time dataset download |
 | **Network** | Docker Hub access for image pulls; anonymous pulls are rate-limited, a Docker Hub login raises the limit for the full census (not needed for the minimal test) |
 
 ## Dependencies
 
 All third-party tools are pinned in the `Dockerfile` and run inside the image. On the host
-the reproduction scripts need only `git` (to clone), Docker, and `curl`/`tar`/`sha256sum`
-for the one-time download; nothing else is installed on the host. The Docker daemon must be
+the reproduction scripts need only `git` (to clone), Docker, and `curl`/`tar` plus either
+`sha256sum` or `shasum` for the one-time download; nothing else is installed on the host. The Docker daemon must be
 running and usable by your user without `sudo`.
 
 ```bash
@@ -108,6 +109,19 @@ Package names for Docker differ between distributions; the
 [upstream instructions](https://docs.docker.com/engine/install/) are authoritative. Every
 script the evaluator runs checks for Docker and for a reachable daemon before doing any
 work, and prints the command for the package manager it finds.
+
+### Running on macOS
+
+The scripts run on stock macOS with Docker Desktop; no Homebrew package is required. They
+use only POSIX shell utilities, and where Linux and macOS differ they pick the right one at
+runtime: `sha256sum` on Linux, `shasum -a 256` on macOS.
+
+On **Apple Silicon** the image is `linux/amd64` and runs under emulation (Rosetta on Docker
+Desktop, QEMU elsewhere). Enable it once in Docker Desktop under *Settings → General →
+Use Rosetta for x86_64/amd64 emulation*, then run the scripts unchanged. Both the minimal
+test and Claim #1 reproduce the paper's numbers under emulation — the analysis is
+deterministic and does not depend on the host architecture. Expect the emulated run to be
+slower than the ~8 minutes measured on x86-64.
 
 | Tool | Version | Role |
 |------|---------|------|
@@ -186,7 +200,7 @@ Paper: Abstract, Table 2, Section *Post-quantum readiness*.
 bash scripts/run_claim.sh
 ```
 
-Downloads and verifies `dataset-v1` (if absent), re-runs the analyzer, regenerates the three
+Downloads and verifies `dataset-v2` (if absent), re-runs the analyzer, regenerates the three
 figures, and checks every headline number against the paper. **7m27s to 8m00s across runs;
 ~6.7 GB peak RAM** measured on an AMD Ryzen 5 8600G (6 cores/12 threads), download excluded;
 single-threaded

@@ -64,8 +64,8 @@ need no network and no containers.
 
 ## 3. The released dataset
 
-The dataset is published as the `dataset-v1` release (`cryptocensus-dataset.tar.gz`, about
-2 GB unpacked) and is checked against `SHA256SUMS` before use. Every file is either a typed
+The dataset is published as the `dataset-v2` release (`cryptocensus-dataset.tar.gz`, 1.76 GB
+compressed and 7.8 GB unpacked) and is checked against `SHA256SUMS` before use. Every file is either a typed
 record or a flat table, so nothing requires a custom reader.
 
 | File | Content |

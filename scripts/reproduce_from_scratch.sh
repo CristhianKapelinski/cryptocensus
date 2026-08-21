@@ -36,9 +36,9 @@ DOCKER_CFG="${DOCKER_CONFIG:-}"
 [ -f "$FRAME" ] || { echo "sampling frame not found: $FRAME"; exit 1; }
 echo "==> Frame: $FRAME ($(wc -l < "$FRAME") references), workers: $WORKERS"
 if [ "$FRAME" = "config/sample-20000.txt" ]; then
-  echo "${FRAME_SHA256}  ${FRAME}" | sha256sum -c - || { echo "frame checksum FAILED"; exit 1; }
+  echo "${FRAME_SHA256}  ${FRAME}" | sha256_check || { echo "frame checksum FAILED"; exit 1; }
 else
-  echo "==> Frame checksum: $(sha256sum "$FRAME" | cut -d' ' -f1)"
+  echo "==> Frame checksum: $(sha256_of "$FRAME")"
 fi
 
 docker image inspect "$IMAGE" >/dev/null 2>&1 || { echo "==> Building image"; docker build -t "$IMAGE" .; }
