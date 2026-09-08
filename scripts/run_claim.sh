@@ -19,9 +19,10 @@ require_docker
 mkdir -p "${1:-dataset}"
 DATASET="$(cd "${1:-dataset}" && pwd)"
 IMAGE="${CC_IMAGE:-cryptocensus:latest}"
-# dataset-v2 lives in this project's generic package registry; SHA256SUMS sits beside it,
-# so the checksum URL is derived from DATASET_URL and stays consistent if you override it.
-DATASET_URL="${CC_DATASET_URL:-https://gitlab.com/api/v4/projects/85478201/packages/generic/cryptocensus-dataset/v2/cryptocensus-dataset.tar.gz}"
+# The dataset is archived on Zenodo (DOI 10.5281/zenodo.22666280); SHA256SUMS sits beside it
+# in the same record, so the checksum URL is derived from DATASET_URL and stays consistent
+# if you override it.
+DATASET_URL="${CC_DATASET_URL:-https://zenodo.org/records/22666281/files/cryptocensus-dataset.tar.gz}"
 TARBALL="$DATASET/cryptocensus-dataset.tar.gz"
 
 # Fetch the archive into the run folder (never the host /tmp) unless the dataset is already
