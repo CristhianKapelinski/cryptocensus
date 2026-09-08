@@ -19,10 +19,19 @@ require_docker
 mkdir -p "${1:-dataset}"
 DATASET="$(cd "${1:-dataset}" && pwd)"
 IMAGE="${CC_IMAGE:-cryptocensus:latest}"
-# The dataset is archived on Zenodo (DOI 10.5281/zenodo.22666280); SHA256SUMS sits beside it
-# in the same record, so the checksum URL is derived from DATASET_URL and stays consistent
-# if you override it.
-DATASET_URL="${CC_DATASET_URL:-https://zenodo.org/records/22666281/files/cryptocensus-dataset.tar.gz}"
+# The dataset is archived on Zenodo under the concept DOI 10.5281/zenodo.22666280, which
+# always resolves to the newest version. We ask the API for that version and build the file
+# URL from the record it returns, so a future dataset release needs no change here.
+# SHA256SUMS sits beside the tarball in the same record, so the checksum URL is derived from
+# DATASET_URL and stays consistent if you override it.
+zenodo_latest() { # concept record id -> base URL of the newest version's files
+  local rec
+  rec=$(curl -fsSL "https://zenodo.org/api/records/$1" \
+        | sed -n 's/.*"id"[[:space:]]*:[[:space:]]*\([0-9]\{1,\}\).*/\1/p' | head -1)
+  [ -n "$rec" ] || { echo "could not resolve Zenodo concept record $1" >&2; return 1; }
+  printf 'https://zenodo.org/records/%s/files' "$rec"
+}
+DATASET_URL="${CC_DATASET_URL:-$(zenodo_latest 22666280)/cryptocensus-dataset.tar.gz}"
 TARBALL="$DATASET/cryptocensus-dataset.tar.gz"
 
 # Fetch the archive into the run folder (never the host /tmp) unless the dataset is already
