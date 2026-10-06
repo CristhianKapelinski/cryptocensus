@@ -1,5 +1,16 @@
 # CryptoCensus
 
+<p align="center">
+  <a href="https://doc-artefatos.github.io/sbseg2026/results.html">
+    <img src="docs/assets/seals/SBRC25_SF_SeloD.png" alt="Artefatos Disponíveis / Available (SeloD)" width="110">
+    <img src="docs/assets/seals/SBRC25_SF_SeloF.png" alt="Artefatos Funcionais / Functional (SeloF)" width="110">
+    <img src="docs/assets/seals/SBRC25_SF_SeloS.png" alt="Artefatos Sustentáveis / Sustainable (SeloS)" width="110">
+    <img src="docs/assets/seals/SBRC25_SF_SeloR.png" alt="Experimentos Reprodutíveis / Reproducible (SeloR)" width="110">
+  </a>
+</p>
+
+<p align="center"><sub>Official SBSeg 2026 artifact-evaluation seals awarded to this artifact (WTICG): Available, Functional, Sustainable and Reproducible. <a href="https://doc-artefatos.github.io/sbseg2026/results.html">Official results</a>. Seal artwork by the SBSeg Artifact Evaluation Committee.</sub></p>
+
 **A reproducible, distributed census of the cryptographic posture and post-quantum
 readiness of cryptographic files shipped in public container images.**
 
@@ -282,7 +293,7 @@ Cite the paper, not the repository:
 @inproceedings{kapelinski2026cryptocensus,
   author    = {Kapelinski, Cristhian and Kreutz, Diego},
   title     = {CryptoCensus: Cryptographic Posture and Post-Quantum Readiness of Docker Hub},
-  booktitle = {Anais do XXVII Simpósio Brasileiro de Segurança da Informação e de Sistemas Computacionais (SBSeg 2026), Workshop de Trabalhos de Iniciação Científica e de Graduação (WTICG)},
+  booktitle = {Anais Estendidos do XXVI Simpósio Brasileiro de Cibersegurança (SBSeg 2026), Workshop de Trabalhos de Iniciação Científica e de Graduação (WTICG)},
   year      = {2026},
   publisher = {Sociedade Brasileira de Computação},
 }
