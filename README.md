@@ -76,9 +76,9 @@ The repository is organized as follows:
 | [`docs/`](docs/) | [`ARCHITECTURE.md`](docs/ARCHITECTURE.md) (design and threat model) and [`SUSTAINABILITY.md`](docs/SUSTAINABILITY.md) (code, dataset schema, and where each number is computed) |
 | [`Dockerfile`](Dockerfile), [`pyproject.toml`](pyproject.toml), [`uv.lock`](uv.lock) | the single pinned image and the pinned dependency set |
 
-The dataset is not in the repository. It is published as `dataset-v2` in this project's
-package registry and downloaded and checksum-verified by `run_claim.sh` on first use.
-No account or token is needed: the project is public and the download is anonymous.
+The dataset is not in the repository. It is archived on Zenodo as `dataset-v2`
+([10.5281/zenodo.22666280](https://doi.org/10.5281/zenodo.22666280)) and downloaded and checksum-verified by `run_claim.sh` on first use.
+No account or token is needed: the record is public and the download is anonymous.
 
 ## Seals considered
 

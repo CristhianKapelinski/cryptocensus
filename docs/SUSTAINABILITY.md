@@ -64,7 +64,7 @@ need no network and no containers.
 
 ## 3. The released dataset
 
-The dataset is published as the `dataset-v2` release (`cryptocensus-dataset.tar.gz`, 1.76 GB
+The dataset is archived on Zenodo as `dataset-v2` ([10.5281/zenodo.22666280](https://doi.org/10.5281/zenodo.22666280); `cryptocensus-dataset.tar.gz`, 1.76 GB
 compressed and 7.8 GB unpacked) and is checked against `SHA256SUMS` before use. Every file is either a typed
 record or a flat table, so nothing requires a custom reader.
 
